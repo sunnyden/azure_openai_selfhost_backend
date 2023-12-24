@@ -1,0 +1,44 @@
+name: Deploy to PROD
+
+on:
+  push:
+    branches: ["master"]
+
+env:
+  DOTNET_VERSION: '8.0.x'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest # For Linux, use ubuntu-latest
+    environment: dev
+    steps:
+    - name: 'Checkout GitHub Action'
+      uses: actions/checkout@v3
+
+    - name: Setup DotNet ${{ env.DOTNET_VERSION }} Environment
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: 'Build'
+      shell: bash
+      run: |
+        dotnet publish --configuration Release --output ./output
+    
+    - name: 'Deploy'
+      uses: wlixcc/SFTP-Deploy-Action@v1.2.4
+      with:
+        username: ${{ secrets.SSH_USER }}
+        server: ${{ secrets.DEPLOY_PROD_HOST }}
+        ssh_private_key: ${{ secrets.SSH_KEY }}
+        local_path: ./output
+        remote_path: /var/staging/
+    - name: 'Apply changes'
+      uses: D3rHase/ssh-command-action@v0.2.2
+      with:
+        host: ${{ secrets.DEPLOY_PROD_HOST }}
+        user: ${{ secrets.SSH_USER }}
+        private_key: ${{ secrets.SSH_KEY }}
+        command: sudo /var/staging/deploy.sh
+        
+    
