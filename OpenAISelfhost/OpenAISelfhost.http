@@ -1,0 +1,11 @@
+@OpenAISelfhost_HostAddress = http://localhost:5131
+
+GET {{OpenAISelfhost_HostAddress}}/auth/get
+Accept: application/json
+
+###
+
+GET {{OpenAISelfhost_HostAddress}}/auth/get
+Accept: application/json
+
+###

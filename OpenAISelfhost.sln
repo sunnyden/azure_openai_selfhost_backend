@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.8.34330.188
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenAISelfhost", "OpenAISelfhost\OpenAISelfhost.csproj", "{FF764576-55CA-460B-96A2-F1C570A0A626}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenAISelfhost.DataContracts", "DataContracts\OpenAISelfhost.DataContracts.csproj", "{FD610BB3-C1BD-4260-A07E-EC58BCDB83FE}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{FF764576-55CA-460B-96A2-F1C570A0A626}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FF764576-55CA-460B-96A2-F1C570A0A626}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FF764576-55CA-460B-96A2-F1C570A0A626}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FF764576-55CA-460B-96A2-F1C570A0A626}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FD610BB3-C1BD-4260-A07E-EC58BCDB83FE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FD610BB3-C1BD-4260-A07E-EC58BCDB83FE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FD610BB3-C1BD-4260-A07E-EC58BCDB83FE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FD610BB3-C1BD-4260-A07E-EC58BCDB83FE}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {A7F300ED-09D9-45A5-9E19-737254D6B03F}
+	EndGlobalSection
+EndGlobal
