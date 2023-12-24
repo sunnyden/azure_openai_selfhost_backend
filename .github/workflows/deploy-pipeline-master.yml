@@ -26,11 +26,12 @@ jobs:
         dotnet publish --configuration Release --output ./output
     
     - name: 'Deploy'
-      uses: datanomi/SFTP-Push@v.1.2.2.1h
+      uses: Creepios/sftp-action@v1.0.3
       with:
         username: ${{ secrets.SSH_USER }}
-        server: ${{ secrets.DEPLOY_PROD_HOST }}
-        ssh_private_key: ${{ secrets.SSH_KEY }}
-        local_path: ./output
-        remote_path: /home/sunnydeng/test/
+        host: ${{ secrets.DEPLOY_PROD_HOST }}
+        port: 22
+        privateKey: ${{ secrets.SSH_KEY }}
+        localPath: ./output
+        remotePath: /home/sunnydeng/test/
     
