@@ -32,5 +32,13 @@ jobs:
         server: ${{ secrets.DEPLOY_PROD_HOST }}
         ssh_private_key: ${{ secrets.SSH_KEY }}
         local_path: ./output
-        remote_path: /home/sunnydeng/test/
+        remote_path: /var/staging/
+    - name: 'Apply changes'
+      uses: D3rHase/ssh-command-action@v0.2.2
+      with:
+        host: ${{ secrets.DEPLOY_PROD_HOST }}
+        user: ${{ secrets.SSH_USER }}
+        private_key: ${{ secrets.SSH_KEY }}
+        command: sudo /var/staging/deploy.sh
+        
     
