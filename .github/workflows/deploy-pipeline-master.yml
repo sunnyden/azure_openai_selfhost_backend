@@ -2,7 +2,7 @@ name: Deploy to PROD
 
 on:
   push:
-    branches: ["sunnydeng/ci-cd-impl"]
+    branches: ["master"]
 
 env:
   DOTNET_VERSION: '8.0.x'
