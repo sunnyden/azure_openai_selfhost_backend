@@ -9,7 +9,7 @@ env:
 
 jobs:
   build-and-deploy:
-    runs-on: windows-latest # For Linux, use ubuntu-latest
+    runs-on: ubuntu-latest # For Linux, use ubuntu-latest
     environment: dev
     steps:
     - name: 'Checkout GitHub Action'
@@ -21,6 +21,16 @@ jobs:
         dotnet-version: ${{ env.DOTNET_VERSION }}
 
     - name: 'Build'
-      shell: pwsh
+      shell: bash
       run: |
         dotnet publish --configuration Release --output ./output
+    
+    - name: 'Deploy'
+      uses: datanomi/SFTP-Push@v.1.2.2.1h
+      with:
+        username: ${{ secrets.SSH_USER }}
+        server: ${{ secrets.DEPLOY_PROD_HOST }}
+        ssh_private_key: ${{ secrets.SSH_KEY }}
+        local_path: ./output
+        remote_path: /home/sunnydeng/test/
+    
