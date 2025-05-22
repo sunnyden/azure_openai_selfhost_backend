@@ -65,22 +65,28 @@ namespace OpenAISelfhost.Service.OpenAI
                 // usage data
                 inputTokenCount += chunk.Usage?.InputTokenCount ?? 0;
                 outputTokenCount += chunk.Usage?.OutputTokenCount ?? 0;
+                if (lastReason == ChatFinishReason.Stop)
+                {
+                    continue;
+                }
                 yield return new PartialChatResponse()
                 {
                     Data = string.Join("\n", chunk.ContentUpdate.Select(c => c.Text)),
-                    IsEnd = false,
+                    IsEnd = chunk.FinishReason == ChatFinishReason.Stop,
                     FinishReason = chunk.FinishReason.ToString() ?? "N/A",
                 };
             }
             var cost = inputTokenCount * model.CostPromptToken + outputTokenCount * model.CostResponseToken;
             transactionService.RecordTransaction(userId, resultId, inputTokenCount, outputTokenCount, inputTokenCount + outputTokenCount, model.Identifier, cost);
-
-            yield return new PartialChatResponse()
+            if (lastReason != ChatFinishReason.Stop)
             {
-                Data = "",
-                IsEnd = true,
-                FinishReason = lastReason?.ToString() ?? "N/A",
-            };
+                yield return new PartialChatResponse()
+                {
+                    Data = "",
+                    IsEnd = true,
+                    FinishReason = lastReason?.ToString() ?? "N/A",
+                };
+            }
         }
 
         private async Task<ChatResponse> RequestCompletionGPT4Vision(ChatModel model, ChatCompletionRequest request, int userId)
