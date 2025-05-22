@@ -61,7 +61,6 @@ namespace OpenAISelfhost.Service.OpenAI
             ChatFinishReason? lastReason = null;
             await foreach (var chunk in response)
             {
-                lastReason = chunk.FinishReason;
                 // usage data
                 inputTokenCount += chunk.Usage?.InputTokenCount ?? 0;
                 outputTokenCount += chunk.Usage?.OutputTokenCount ?? 0;
@@ -69,6 +68,7 @@ namespace OpenAISelfhost.Service.OpenAI
                 {
                     continue;
                 }
+                lastReason = chunk.FinishReason;
                 yield return new PartialChatResponse()
                 {
                     Data = string.Join("\n", chunk.ContentUpdate.Select(c => c.Text)),
