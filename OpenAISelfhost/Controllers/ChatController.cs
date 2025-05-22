@@ -27,13 +27,43 @@ namespace OpenAISelfhost.Controllers
             [FromBody] ChatCompletionRequestWithModelInfo request)
         {
             var model = modelService.GetModelForUser(GetUserId(), request.Model);
-            if(model == null)
+            if (model == null)
                 throw new ModelNotFoundException("Model not found");
             var response = await chatService.RequestCompletion(model, request.Request, GetUserId());
             return new()
             {
                 Data = response
             };
+        }
+
+        /**
+         * @param request
+         * @return service sent event event stream
+         */
+        [HttpPost("streamingCompletion")]
+        public async Task StreamingCompletion(
+            [FromBody] ChatCompletionRequestWithModelInfo request)
+        {
+            var model = modelService.GetModelForUser(GetUserId(), request.Model);
+            if (model == null)
+                throw new ModelNotFoundException("Model not found");
+            var response = chatService.RequestStreamingCompletion(model, request.Request, GetUserId());
+            Response.ContentType = "text/event-stream";
+            // Send the initial event
+            await foreach (var chunk in response)
+            {
+                // Send each chunk as a separate event
+                await Response.WriteAsync($"data: {chunk.Data}\n\n");
+                if (chunk.IsEnd)
+                {
+                    break;
+                }
+                await Response.Body.FlushAsync();
+            }
+            // Send the final event
+            await Response.Body.FlushAsync();
+            // Complete the response
+            await Response.CompleteAsync();
         }
     }
 }

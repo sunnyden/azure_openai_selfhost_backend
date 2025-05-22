@@ -50,7 +50,41 @@ namespace OpenAISelfhost.Service.OpenAI
             }
         }
 
-        private async Task<ChatResponse> RequestCompletionGPT4Vision(ChatModel model,ChatCompletionRequest request, int userId)
+        public async IAsyncEnumerable<PartialChatResponse> RequestStreamingCompletion(ChatModel model, ChatCompletionRequest request, int userId)
+        {
+            var openAIClient = new AzureOpenAIClient(new Uri(model.Endpoint), new AzureKeyCredential(model.Key));
+            var chatClient = openAIClient.GetChatClient(model.Deployment);
+            var response = chatClient.CompleteChatStreamingAsync(ToChatMessages(request));
+            var inputTokenCount = 0;
+            var outputTokenCount = 0;
+            var resultId = Guid.NewGuid().ToString();
+            ChatFinishReason? lastReason = null;
+            await foreach (var chunk in response)
+            {
+                lastReason = chunk.FinishReason;
+                // usage data
+                var usage = chunk.Usage;
+                inputTokenCount += usage.InputTokenCount;
+                outputTokenCount += usage.OutputTokenCount;
+                yield return new PartialChatResponse()
+                {
+                    Data = string.Join("\n", chunk.ContentUpdate.Select(c => c.Text)),
+                    IsEnd = false,
+                    FinishReason = chunk.FinishReason.ToString() ?? "N/A",
+                };
+            }
+            var cost = inputTokenCount * model.CostPromptToken + outputTokenCount * model.CostResponseToken;
+            transactionService.RecordTransaction(userId, resultId, inputTokenCount, outputTokenCount, inputTokenCount + outputTokenCount, model.Identifier, cost);
+
+            yield return new PartialChatResponse()
+            {
+                Data = "",
+                IsEnd = true,
+                FinishReason = lastReason?.ToString() ?? "N/A",
+            };
+        }
+
+        private async Task<ChatResponse> RequestCompletionGPT4Vision(ChatModel model, ChatCompletionRequest request, int userId)
         {
             request.MaxTokens = model.MaxTokens;
             request.Stream = false;
@@ -58,7 +92,7 @@ namespace OpenAISelfhost.Service.OpenAI
             var result = await gpt4VisionClient.RequestCompletion(request);
             //generate random uuid
             result.Id = Guid.NewGuid().ToString();
-            
+
             return result;
         }
 
@@ -66,7 +100,7 @@ namespace OpenAISelfhost.Service.OpenAI
         {
             var openAIClient = new AzureOpenAIClient(new Uri(model.Endpoint), new AzureKeyCredential(model.Key));
             var chatClient = openAIClient.GetChatClient(model.Deployment);
-            var response = await chatClient.CompleteChatAsync(request.Messages.Select(ToChatMessage));
+            var response = await chatClient.CompleteChatAsync(ToChatMessages(request));
 
             var result = new ChatResponse()
             {
@@ -79,20 +113,20 @@ namespace OpenAISelfhost.Service.OpenAI
 
             result.Id = Guid.NewGuid().ToString();
             return result;
+        }
 
-            ChatMessage ToChatMessage(DataContracts.Common.Chat.ChatMessage message)
+        private IEnumerable<ChatMessage> ToChatMessages(ChatCompletionRequest request)
+        {
+            foreach (var message in request.Messages)
             {
-                switch (message.Role)
+                var content = string.Join("\n", message.Content.Select(c => c.Text));
+                yield return message.Role switch
                 {
-                    case DataContracts.Common.Chat.ChatRole.User:
-                        return new UserChatMessage(string.Join("\n", message.Content.Select(c => c.Text)));
-                    case DataContracts.Common.Chat.ChatRole.Assistant:
-                        return new AssistantChatMessage(string.Join("\n", message.Content.Select(c => c.Text)));
-                    case DataContracts.Common.Chat.ChatRole.System:
-                        return new SystemChatMessage(string.Join("\n", message.Content.Select(c => c.Text)));
-                    default:
-                        throw new Exception("Invalid chat role");
-                }
+                    ChatRole.User => new UserChatMessage(content),
+                    ChatRole.Assistant => new AssistantChatMessage(content),
+                    ChatRole.System => new SystemChatMessage(content),
+                    _ => throw new Exception("Invalid chat role"),
+                };
             }
         }
     }
