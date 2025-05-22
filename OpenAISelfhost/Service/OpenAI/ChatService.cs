@@ -63,9 +63,8 @@ namespace OpenAISelfhost.Service.OpenAI
             {
                 lastReason = chunk.FinishReason;
                 // usage data
-                var usage = chunk.Usage;
-                inputTokenCount += usage.InputTokenCount;
-                outputTokenCount += usage.OutputTokenCount;
+                inputTokenCount += chunk.Usage?.InputTokenCount ?? 0;
+                outputTokenCount += chunk.Usage?.OutputTokenCount ?? 0;
                 yield return new PartialChatResponse()
                 {
                     Data = string.Join("\n", chunk.ContentUpdate.Select(c => c.Text)),
