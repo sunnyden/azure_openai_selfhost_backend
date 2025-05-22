@@ -35,6 +35,5 @@ namespace OpenAISelfhost.Controllers
                 Data = response
             };
         }
-
     }
 }

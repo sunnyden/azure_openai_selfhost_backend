@@ -1,5 +1,6 @@
 ﻿using Azure;
 using Azure.AI.OpenAI;
+using OpenAI.Chat;
 using OpenAISelfhost.DataContracts.Common.Chat;
 using OpenAISelfhost.DataContracts.DataTables;
 using OpenAISelfhost.DataContracts.Request.Chat;
@@ -8,6 +9,7 @@ using OpenAISelfhost.Exceptions.Http;
 using OpenAISelfhost.Service.Billing;
 using OpenAISelfhost.Service.Interface;
 using OpenAISelfhost.Service.OpenAI.Utils;
+using ChatMessage = OpenAI.Chat.ChatMessage;
 
 namespace OpenAISelfhost.Service.OpenAI
 {
@@ -62,38 +64,32 @@ namespace OpenAISelfhost.Service.OpenAI
 
         private async Task<ChatResponse> RequestCompletionWithSDK(ChatModel model, ChatCompletionRequest request, int userId)
         {
-            var chatCompletionOptions = new ChatCompletionsOptions()
-            {
-                DeploymentName = model.Deployment,
-                MaxTokens = model.MaxTokens,
-            };
-
-            request.Messages.Select(ToChatMessage).ToList().ForEach(chatCompletionOptions.Messages.Add);
-            var openAIClient = new OpenAIClient(new Uri(model.Endpoint), new AzureKeyCredential(model.Key));
-            Response<ChatCompletions> response = await openAIClient.GetChatCompletionsAsync(chatCompletionOptions);
+            var openAIClient = new AzureOpenAIClient(new Uri(model.Endpoint), new AzureKeyCredential(model.Key));
+            var chatClient = openAIClient.GetChatClient(model.Deployment);
+            var response = await chatClient.CompleteChatAsync(request.Messages.Select(ToChatMessage));
 
             var result = new ChatResponse()
             {
-                Message = response.Value.Choices[0].Message.Content,
-                PromptTokens = response.Value.Usage.PromptTokens,
-                ResponseTokens = response.Value.Usage.CompletionTokens,
-                TotalTokens = response.Value.Usage.TotalTokens,
-                StopReason = response.Value.Choices[0].FinishReason?.ToString() ?? "N/A",
+                Message = response.Value.Content[0].Text,
+                PromptTokens = response.Value.Usage.InputTokenCount,
+                ResponseTokens = response.Value.Usage.OutputTokenCount,
+                TotalTokens = response.Value.Usage.TotalTokenCount,
+                StopReason = response.Value.FinishReason.ToString() ?? "N/A",
             };
 
             result.Id = Guid.NewGuid().ToString();
             return result;
 
-            ChatRequestMessage ToChatMessage(ChatMessage message)
+            ChatMessage ToChatMessage(DataContracts.Common.Chat.ChatMessage message)
             {
                 switch (message.Role)
                 {
                     case DataContracts.Common.Chat.ChatRole.User:
-                        return new ChatRequestUserMessage(string.Join("\n", message.Content.Select(c => c.Text)));
+                        return new UserChatMessage(string.Join("\n", message.Content.Select(c => c.Text)));
                     case DataContracts.Common.Chat.ChatRole.Assistant:
-                        return new ChatRequestAssistantMessage(string.Join("\n", message.Content.Select(c => c.Text)));
+                        return new AssistantChatMessage(string.Join("\n", message.Content.Select(c => c.Text)));
                     case DataContracts.Common.Chat.ChatRole.System:
-                        return new ChatRequestSystemMessage(string.Join("\n", message.Content.Select(c => c.Text)));
+                        return new SystemChatMessage(string.Join("\n", message.Content.Select(c => c.Text)));
                     default:
                         throw new Exception("Invalid chat role");
                 }
