@@ -53,11 +53,10 @@ namespace OpenAISelfhost.Controllers
             await foreach (var chunk in response)
             {
                 // Send each chunk as a separate event
-                await Response.WriteAsync($"data: {chunk.Data}\n\n");
-                if (chunk.IsEnd)
-                {
-                    break;
-                }
+                // serialize as one line json with explicit options to ensure no indentation
+                var jsonOptions = new System.Text.Json.JsonSerializerOptions { WriteIndented = false };
+                var json = System.Text.Json.JsonSerializer.Serialize(chunk, jsonOptions);
+                await Response.WriteAsync($"data: {json}\n\n");
                 await Response.Body.FlushAsync();
             }
             // Send the final event
