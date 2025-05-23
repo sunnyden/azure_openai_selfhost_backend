@@ -55,6 +55,7 @@ namespace OpenAISelfhost.Controllers
                 // Send each chunk as a separate event
                 // serialize as one line json with explicit options to ensure no indentation
                 var jsonOptions = new System.Text.Json.JsonSerializerOptions { WriteIndented = false };
+                jsonOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
                 var json = System.Text.Json.JsonSerializer.Serialize(chunk, jsonOptions);
                 await Response.WriteAsync($"data: {json}\n\n");
                 await Response.Body.FlushAsync();
