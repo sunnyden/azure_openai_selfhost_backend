@@ -12,6 +12,7 @@ using OpenAISelfhost.Service.Interface;
 using OpenAISelfhost.Service.OpenAI;
 using System.Text;
 using Microsoft.AspNetCore.ResponseCompression;
+using OpenAISelfhost.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddExceptionHandler<ExceptionHandler>();
@@ -53,6 +54,8 @@ builder.Services.AddDbContext<ServiceDatabaseContext>(options => options.UseMySq
 // Add response compression with exception for SSE content type
 builder.Services.AddResponseCompression(options =>
 {
+    // Only compress specific mime types (exclude text/event-stream)
+    options.EnableForHttps = true;
     options.MimeTypes = new[] 
     {
         "application/json",
@@ -60,10 +63,14 @@ builder.Services.AddResponseCompression(options =>
         "text/plain",
         "text/html"
     };
+    // Explicitly exclude SSE content type
     options.ExcludedMimeTypes = new[] { "text/event-stream" };
 });
 
 var app = builder.Build();
+
+// Our custom middleware to disable compression for SSE endpoints
+app.UseDisableCompressionForSSE();
 
 app.UseResponseCompression();
 app.UseRouting();

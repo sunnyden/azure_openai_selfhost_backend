@@ -4,6 +4,7 @@ using OpenAISelfhost.DataContracts.Request.Chat;
 using OpenAISelfhost.DataContracts.Response.Chat;
 using OpenAISelfhost.DataContracts.Response.Common;
 using OpenAISelfhost.Exceptions.Http;
+using OpenAISelfhost.Filters;
 using OpenAISelfhost.Service.OpenAI;
 
 namespace OpenAISelfhost.Controllers
@@ -41,6 +42,7 @@ namespace OpenAISelfhost.Controllers
          * @return service sent event event stream
          */
         [HttpPost("streamingCompletion")]
+        [DisableCompression]
         public async Task StreamingCompletion(
             [FromBody] ChatCompletionRequestWithModelInfo request)
         {
@@ -56,6 +58,9 @@ namespace OpenAISelfhost.Controllers
             Response.Headers.Append("X-Content-Type-Options", "nosniff");
             // Explicitly tell proxies not to buffer or compress the response
             Response.Headers.Append("X-Accel-Buffering", "no");
+            // Explicitly set content encoding to identity to disable compression
+            Response.Headers.Append("Content-Encoding", "identity");
+            Response.Headers.Append("Transfer-Encoding", "identity");
             
             // Send the initial event
             await foreach (var chunk in response)
