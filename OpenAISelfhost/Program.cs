@@ -54,7 +54,6 @@ var app = builder.Build();
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseResponseCompression();
 
 app.MapControllers();
 app.UseExceptionHandler(options => { });
