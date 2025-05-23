@@ -4,6 +4,7 @@ using OpenAISelfhost.DataContracts.Request.Chat;
 using OpenAISelfhost.DataContracts.Response.Chat;
 using OpenAISelfhost.DataContracts.Response.Common;
 using OpenAISelfhost.Exceptions.Http;
+using OpenAISelfhost.Filters;
 using OpenAISelfhost.Service.OpenAI;
 
 namespace OpenAISelfhost.Controllers
@@ -41,6 +42,7 @@ namespace OpenAISelfhost.Controllers
          * @return service sent event event stream
          */
         [HttpPost("streamingCompletion")]
+        [DisableCompression]
         public async Task StreamingCompletion(
             [FromBody] ChatCompletionRequestWithModelInfo request)
         {
