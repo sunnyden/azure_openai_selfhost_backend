@@ -1,7 +1,5 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.IdentityModel.Tokens;
 using OpenAISelfhost.DatabaseContext;
 using OpenAISelfhost.DataContracts.Utils.Serialization.Chat;
@@ -11,8 +9,6 @@ using OpenAISelfhost.Service.Billing;
 using OpenAISelfhost.Service.Interface;
 using OpenAISelfhost.Service.OpenAI;
 using System.Text;
-using Microsoft.AspNetCore.ResponseCompression;
-using OpenAISelfhost.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddExceptionHandler<ExceptionHandler>();
@@ -51,27 +47,9 @@ builder.Services.AddAuthentication(options =>
 var serverVersion = new MySqlServerVersion(new Version(8, 0, 35));
 builder.Services.AddDbContext<ServiceDatabaseContext>(options => options.UseMySql(builder.Configuration.GetConnectionString("DBConn"), serverVersion));
 
-// Add response compression with exception for SSE content type
-builder.Services.AddResponseCompression(options =>
-{
-    // Only compress specific mime types (exclude text/event-stream)
-    options.EnableForHttps = true;
-    options.MimeTypes = new[] 
-    {
-        "application/json",
-        "application/xml",
-        "text/plain",
-        "text/html"
-    };
-    // Explicitly exclude SSE content type
-    options.ExcludedMimeTypes = new[] { "text/event-stream" };
-});
+builder.Services.AddResponseCompression();
 
 var app = builder.Build();
-
-// Our custom middleware to disable compression for SSE endpoints
-app.UseDisableCompressionForSSE();
-
 app.UseResponseCompression();
 app.UseRouting();
 app.UseAuthentication();
