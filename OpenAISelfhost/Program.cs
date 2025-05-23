@@ -11,6 +11,7 @@ using OpenAISelfhost.Service.Billing;
 using OpenAISelfhost.Service.Interface;
 using OpenAISelfhost.Service.OpenAI;
 using System.Text;
+using Microsoft.AspNetCore.ResponseCompression;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddExceptionHandler<ExceptionHandler>();
@@ -48,12 +49,26 @@ builder.Services.AddAuthentication(options =>
                 });
 var serverVersion = new MySqlServerVersion(new Version(8, 0, 35));
 builder.Services.AddDbContext<ServiceDatabaseContext>(options => options.UseMySql(builder.Configuration.GetConnectionString("DBConn"), serverVersion));
+
+// Add response compression with exception for SSE content type
+builder.Services.AddResponseCompression(options =>
+{
+    options.MimeTypes = new[] 
+    {
+        "application/json",
+        "application/xml",
+        "text/plain",
+        "text/html"
+    };
+    options.ExcludedMimeTypes = new[] { "text/event-stream" };
+});
+
 var app = builder.Build();
 
+app.UseResponseCompression();
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
-
 app.MapControllers();
 app.UseExceptionHandler(options => { });
 app.Run();

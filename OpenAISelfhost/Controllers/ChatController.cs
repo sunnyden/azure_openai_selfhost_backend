@@ -48,7 +48,15 @@ namespace OpenAISelfhost.Controllers
             if (model == null)
                 throw new ModelNotFoundException("Model not found");
             var response = chatService.RequestStreamingCompletion(model, request.Request, GetUserId());
+            
+            // Set headers for SSE and explicitly disable caching and compression
             Response.ContentType = "text/event-stream";
+            Response.Headers.Append("Cache-Control", "no-cache, no-store, max-age=0, must-revalidate");
+            Response.Headers.Append("Pragma", "no-cache");
+            Response.Headers.Append("X-Content-Type-Options", "nosniff");
+            // Explicitly tell proxies not to buffer or compress the response
+            Response.Headers.Append("X-Accel-Buffering", "no");
+            
             // Send the initial event
             await foreach (var chunk in response)
             {
