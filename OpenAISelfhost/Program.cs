@@ -1,7 +1,5 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.IdentityModel.Tokens;
 using OpenAISelfhost.DatabaseContext;
 using OpenAISelfhost.DataContracts.Utils.Serialization.Chat;
@@ -11,11 +9,8 @@ using OpenAISelfhost.Service.Billing;
 using OpenAISelfhost.Service.Interface;
 using OpenAISelfhost.Service.OpenAI;
 using System.Text;
-using Microsoft.AspNetCore.ResponseCompression;
 using OpenAISelfhost.Middleware;
-using OpenAISelfhost.Transports;
-using System.Reflection;
-var pipe = new MCPPipe();
+
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddExceptionHandler<ExceptionHandler>();
 
@@ -29,24 +24,6 @@ builder.Services.AddTransient<IUserService, UserService>();
 builder.Services.AddTransient<IChatService, ChatService>();
 builder.Services.AddTransient<ITransactionService, TransactionService>();
 builder.Services.AddTransient<IModelService, ModelService>();
-builder.Services.AddSingleton(pipe);
-// try to load all assemblies from ./tools directory
-Assembly? toolsAssembly;
-try
-{
-    toolsAssembly = Assembly.LoadFrom(Path.Combine(AppContext.BaseDirectory, "tools", "MCPTools.dll"));
-}catch (Exception)
-{
-    toolsAssembly = null;
-}
-
-var mcpBuilder = builder.Services.AddMcpServer()
-                        .WithStreamServerTransport(pipe.ClientToServerPipe.Reader.AsStream(), pipe.ServerToClientPipe.Writer.AsStream());
-if (toolsAssembly != null)
-{
-    mcpBuilder.WithToolsFromAssembly(toolsAssembly);
-}
-                
 builder.Services.AddAuthentication(options =>
                 {
                     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;

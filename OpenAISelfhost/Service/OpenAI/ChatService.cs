@@ -24,16 +24,10 @@ namespace OpenAISelfhost.Service.OpenAI
         private readonly IUserService userService;
         private readonly ITransactionService transactionService;
 
-        private readonly StreamClientTransport mcpTransport;
-
-        public ChatService(IUserService userService, ITransactionService transactionService, MCPPipe mcpPipe)
+        public ChatService(IUserService userService, ITransactionService transactionService)
         {
             this.userService = userService;
             this.transactionService = transactionService;
-            mcpTransport = new StreamClientTransport(
-                mcpPipe.ClientToServerPipe.Writer.AsStream(),
-                mcpPipe.ServerToClientPipe.Reader.AsStream()
-            );
         }
 
         public async Task<ChatResponse> RequestCompletion(ChatModel model, ChatCompletionRequest request, int userId)
@@ -73,7 +67,11 @@ namespace OpenAISelfhost.Service.OpenAI
             var inputTokenCount = 0;
             var outputTokenCount = 0;
             var resultId = Guid.NewGuid().ToString();
-            var mcpClient = await McpClientFactory.CreateAsync(mcpTransport);
+            var pipe = new MCPPipe();
+            using var localMcpService = new LocalMCPService(pipe);
+            _ = localMcpService.StartAsync();
+            var clientTransport = new StreamClientTransport(pipe.ClientToServerPipe.Writer.AsStream(), pipe.ServerToClientPipe.Reader.AsStream());
+            var mcpClient = await McpClientFactory.CreateAsync(clientTransport);
             var tools = await mcpClient.ListToolsAsync();
             var response = chatClient.GetStreamingResponseAsync(ToChatMessages(request), new()
             {
