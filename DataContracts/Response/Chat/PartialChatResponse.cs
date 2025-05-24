@@ -11,5 +11,8 @@ namespace OpenAISelfhost.DataContracts.Response.Chat
         public string Data { get; set; }
         public string FinishReason { get; set; }
         public bool IsEnd { get; set; }
+
+        public string? ToolName { get; set; }
+        public string? ToolParameters { get; set; }
     }
 }

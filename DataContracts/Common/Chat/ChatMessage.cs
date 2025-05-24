@@ -11,7 +11,7 @@ namespace OpenAISelfhost.DataContracts.Common.Chat
     public class ChatMessage
     {
         [JsonConverter(typeof(JsonChatRoleConverter))]
-        public ChatRole Role { get; set; }
+        public ConversationRole Role { get; set; }
         public IEnumerable<ChatContentItem> Content { get; set; }
     }
 }

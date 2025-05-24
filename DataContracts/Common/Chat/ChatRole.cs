@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace OpenAISelfhost.DataContracts.Common.Chat
 {
-    public enum ChatRole
+    public enum ConversationRole
     {
         System,
         User,
@@ -15,31 +15,31 @@ namespace OpenAISelfhost.DataContracts.Common.Chat
 
     public static class ChatRoleExtensions
     {
-        public static string ToRoleString(this ChatRole role)
+        public static string ToRoleString(this ConversationRole role)
         {
             switch (role)
             {
-                case ChatRole.System:
+                case ConversationRole.System:
                     return "system";
-                case ChatRole.User:
+                case ConversationRole.User:
                     return "user";
-                case ChatRole.Assistant:
+                case ConversationRole.Assistant:
                     return "assistant";
                 default:
                     throw new ArgumentException("Invalid role");
             }
         }
 
-        public static ChatRole ToChatRole(this string role)
+        public static ConversationRole ToChatRole(this string role)
         {
             switch (role)
             {
                 case "system":
-                    return ChatRole.System;
+                    return ConversationRole.System;
                 case "user":
-                    return ChatRole.User;
+                    return ConversationRole.User;
                 case "assistant":
-                    return ChatRole.Assistant;
+                    return ConversationRole.Assistant;
                 default:
                     throw new ArgumentException("Invalid role");
             }

@@ -1,6 +1,10 @@
-﻿using Azure;
+﻿using System.Text.Json;
+using System.Text.Json.Serialization;
+using Azure;
 using Azure.AI.OpenAI;
-using OpenAI.Chat;
+using Microsoft.Extensions.AI;
+using ModelContextProtocol.Client;
+using ModelContextProtocol.Protocol;
 using OpenAISelfhost.DataContracts.Common.Chat;
 using OpenAISelfhost.DataContracts.DataTables;
 using OpenAISelfhost.DataContracts.Request.Chat;
@@ -9,7 +13,9 @@ using OpenAISelfhost.Exceptions.Http;
 using OpenAISelfhost.Service.Billing;
 using OpenAISelfhost.Service.Interface;
 using OpenAISelfhost.Service.OpenAI.Utils;
-using ChatMessage = OpenAI.Chat.ChatMessage;
+using OpenAISelfhost.Transports;
+using ChatMessage = Microsoft.Extensions.AI.ChatMessage;
+using ChatResponse = OpenAISelfhost.DataContracts.Response.Chat.ChatResponse;
 
 namespace OpenAISelfhost.Service.OpenAI
 {
@@ -18,10 +24,16 @@ namespace OpenAISelfhost.Service.OpenAI
         private readonly IUserService userService;
         private readonly ITransactionService transactionService;
 
-        public ChatService(IUserService userService, ITransactionService transactionService)
+        private readonly StreamClientTransport mcpTransport;
+
+        public ChatService(IUserService userService, ITransactionService transactionService, MCPPipe mcpPipe)
         {
             this.userService = userService;
             this.transactionService = transactionService;
+            mcpTransport = new StreamClientTransport(
+                mcpPipe.ClientToServerPipe.Writer.AsStream(),
+                mcpPipe.ServerToClientPipe.Reader.AsStream()
+            );
         }
 
         public async Task<ChatResponse> RequestCompletion(ChatModel model, ChatCompletionRequest request, int userId)
@@ -53,27 +65,57 @@ namespace OpenAISelfhost.Service.OpenAI
         public async IAsyncEnumerable<PartialChatResponse> RequestStreamingCompletion(ChatModel model, ChatCompletionRequest request, int userId)
         {
             var openAIClient = new AzureOpenAIClient(new Uri(model.Endpoint), new AzureKeyCredential(model.Key));
-            var chatClient = openAIClient.GetChatClient(model.Deployment);
-            var response = chatClient.CompleteChatStreamingAsync(ToChatMessages(request));
+            var openAIChatClient = openAIClient.GetChatClient(model.Deployment);
+            var chatClient = openAIChatClient.AsIChatClient()
+                .AsBuilder()
+                .UseFunctionInvocation()
+                .Build();
             var inputTokenCount = 0;
             var outputTokenCount = 0;
             var resultId = Guid.NewGuid().ToString();
+            var mcpClient = await McpClientFactory.CreateAsync(mcpTransport);
+            var tools = await mcpClient.ListToolsAsync();
+            var response = chatClient.GetStreamingResponseAsync(ToChatMessages(request), new()
+            {
+                Tools = [.. tools],
+            });
             ChatFinishReason? lastReason = null;
-            await foreach (var chunk in response)
+            await foreach (var update in response)
             {
                 // usage data
-                inputTokenCount += chunk.Usage?.InputTokenCount ?? 0;
-                outputTokenCount += chunk.Usage?.OutputTokenCount ?? 0;
+                if (update.Contents.OfType<UsageContent>().FirstOrDefault() is { } usageContent)
+                {
+                    inputTokenCount += (int)(usageContent.Details.InputTokenCount ?? 0);
+                    outputTokenCount += (int)(usageContent.Details.OutputTokenCount ?? 0);
+                }
                 if (lastReason == ChatFinishReason.Stop)
                 {
                     continue;
                 }
-                lastReason = chunk.FinishReason;
+                if (update.Contents.OfType<FunctionCallContent>().FirstOrDefault() is { } functionCall)
+                {
+                    yield return new PartialChatResponse()
+                    {
+                        Data = "",
+                        IsEnd = false,
+                        FinishReason = "function_call",
+                        ToolName = functionCall.Name,
+                        ToolParameters = JsonSerializer.Serialize(functionCall.Arguments, new JsonSerializerOptions()
+                        {
+                            Converters =
+                            {
+                                new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)
+                            }
+                        }),
+                    };
+                    continue;
+                }
+                lastReason = update.FinishReason;
                 yield return new PartialChatResponse()
                 {
-                    Data = string.Join("\n", chunk.ContentUpdate.Select(c => c.Text)),
-                    IsEnd = chunk.FinishReason == ChatFinishReason.Stop,
-                    FinishReason = chunk.FinishReason.ToString() ?? "N/A",
+                    Data = update.Text,
+                    IsEnd = update.FinishReason == ChatFinishReason.Stop,
+                    FinishReason = update.FinishReason.ToString() ?? "N/A",
                 };
             }
             var cost = inputTokenCount * model.CostPromptToken + outputTokenCount * model.CostResponseToken;
@@ -104,16 +146,20 @@ namespace OpenAISelfhost.Service.OpenAI
         private async Task<ChatResponse> RequestCompletionWithSDK(ChatModel model, ChatCompletionRequest request, int userId)
         {
             var openAIClient = new AzureOpenAIClient(new Uri(model.Endpoint), new AzureKeyCredential(model.Key));
-            var chatClient = openAIClient.GetChatClient(model.Deployment);
-            var response = await chatClient.CompleteChatAsync(ToChatMessages(request));
+            var openAIChatClient = openAIClient.GetChatClient(model.Deployment);
+            var chatClient = openAIChatClient.AsIChatClient()
+                .AsBuilder()
+                .UseFunctionInvocation()
+                .Build();
+            var response = await chatClient.GetResponseAsync(ToChatMessages(request));
 
             var result = new ChatResponse()
             {
-                Message = response.Value.Content[0].Text,
-                PromptTokens = response.Value.Usage.InputTokenCount,
-                ResponseTokens = response.Value.Usage.OutputTokenCount,
-                TotalTokens = response.Value.Usage.TotalTokenCount,
-                StopReason = response.Value.FinishReason.ToString() ?? "N/A",
+                Message = response.Text,
+                PromptTokens = (int)(response.Usage?.InputTokenCount ?? 0),
+                ResponseTokens = (int)(response.Usage?.OutputTokenCount ?? 0),
+                TotalTokens = (int)(response.Usage?.TotalTokenCount ?? 0),
+                StopReason = response.FinishReason.ToString() ?? "N/A",
             };
 
             result.Id = Guid.NewGuid().ToString();
@@ -127,9 +173,9 @@ namespace OpenAISelfhost.Service.OpenAI
                 var content = string.Join("\n", message.Content.Select(c => c.Text));
                 yield return message.Role switch
                 {
-                    ChatRole.User => new UserChatMessage(content),
-                    ChatRole.Assistant => new AssistantChatMessage(content),
-                    ChatRole.System => new SystemChatMessage(content),
+                    ConversationRole.User => new ChatMessage(ChatRole.User, content),
+                    ConversationRole.Assistant => new ChatMessage(ChatRole.Assistant, content),
+                    ConversationRole.System => new ChatMessage(ChatRole.System, content),
                     _ => throw new Exception("Invalid chat role"),
                 };
             }

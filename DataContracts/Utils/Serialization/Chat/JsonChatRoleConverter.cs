@@ -4,14 +4,14 @@ using System.Text.Json.Serialization;
 
 namespace OpenAISelfhost.DataContracts.Utils.Serialization.Chat
 {
-    public class JsonChatRoleConverter : JsonConverter<ChatRole>
+    public class JsonChatRoleConverter : JsonConverter<ConversationRole>
     {
-        public override ChatRole Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        public override ConversationRole Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
             return reader.GetString().ToChatRole();
         }
 
-        public override void Write(Utf8JsonWriter writer, ChatRole value, JsonSerializerOptions options)
+        public override void Write(Utf8JsonWriter writer, ConversationRole value, JsonSerializerOptions options)
         {
             writer.WriteStringValue(value.ToRoleString());
         }
