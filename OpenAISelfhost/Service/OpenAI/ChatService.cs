@@ -58,6 +58,11 @@ namespace OpenAISelfhost.Service.OpenAI
 
         public async IAsyncEnumerable<PartialChatResponse> RequestStreamingCompletion(ChatModel model, ChatCompletionRequest request, int userId)
         {
+            var user = userService.GetUser(userId);
+            if (user == null)
+                throw new AuthorizationException("Unable to find user for billing");
+            if (user.RemainingCredit <= 0)
+                throw new InsufficientTokenException("You don't have enough token to execute this request");
             var openAIClient = new AzureOpenAIClient(new Uri(model.Endpoint), new AzureKeyCredential(model.Key));
             var openAIChatClient = openAIClient.GetChatClient(model.Deployment);
             var chatClient = openAIChatClient.AsIChatClient()
@@ -117,6 +122,8 @@ namespace OpenAISelfhost.Service.OpenAI
                 };
             }
             var cost = inputTokenCount * model.CostPromptToken + outputTokenCount * model.CostResponseToken;
+            user.RemainingCredit -= cost;
+            userService.UpdateUser(user);
             transactionService.RecordTransaction(userId, resultId, inputTokenCount, outputTokenCount, inputTokenCount + outputTokenCount, model.Identifier, cost);
             if (lastReason != ChatFinishReason.Stop)
             {
