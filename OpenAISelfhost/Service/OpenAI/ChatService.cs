@@ -86,7 +86,7 @@ namespace OpenAISelfhost.Service.OpenAI
             await foreach (var update in response)
             {
                 // usage data
-                if (update.Contents.OfType<UsageContent>().FirstOrDefault() is { } usageContent)
+                foreach (var usageContent in update.Contents.OfType<UsageContent>())
                 {
                     inputTokenCount += (int)(usageContent.Details.InputTokenCount ?? 0);
                     outputTokenCount += (int)(usageContent.Details.OutputTokenCount ?? 0);
@@ -95,7 +95,7 @@ namespace OpenAISelfhost.Service.OpenAI
                 {
                     continue;
                 }
-                if (update.Contents.OfType<FunctionCallContent>().FirstOrDefault() is { } functionCall)
+                foreach (var functionCall in update.Contents.OfType<FunctionCallContent>())
                 {
                     yield return new PartialChatResponse()
                     {
@@ -111,7 +111,6 @@ namespace OpenAISelfhost.Service.OpenAI
                             }
                         }),
                     };
-                    continue;
                 }
                 lastReason = update.FinishReason;
                 yield return new PartialChatResponse()
