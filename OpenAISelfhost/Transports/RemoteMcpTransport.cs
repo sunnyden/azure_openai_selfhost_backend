@@ -133,6 +133,7 @@ namespace OpenAISelfhost.Transports
         {
             if(!authenticated)
             {
+                Dispose();
                 return;
             }
             ServerToClientPipe.Writer.AsStream().Write(message);
