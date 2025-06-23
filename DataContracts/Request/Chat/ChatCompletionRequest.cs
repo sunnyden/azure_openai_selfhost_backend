@@ -14,5 +14,7 @@ namespace OpenAISelfhost.DataContracts.Request.Chat
         [JsonPropertyName("max_tokens")]
         public int MaxTokens { get; set; }
         public bool Stream { get; set; }
+        [JsonPropertyName("MCPCorrelationId")]
+        public string? MCPCorrelationId { get; set; }
     }
 }

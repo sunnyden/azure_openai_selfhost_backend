@@ -12,5 +12,6 @@ namespace OpenAISelfhost.Service.Interface
         public IEnumerable<User> GetUsers();
         public void DeleteUser(User user);
         public bool UserExists(int userId);
+        public bool ValidateToken(string token);
     }
 }

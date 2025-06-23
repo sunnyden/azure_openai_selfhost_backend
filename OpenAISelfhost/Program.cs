@@ -10,6 +10,7 @@ using OpenAISelfhost.Service.Interface;
 using OpenAISelfhost.Service.OpenAI;
 using System.Text;
 using OpenAISelfhost.Middleware;
+using OpenAISelfhost.Service.MCP;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddExceptionHandler<ExceptionHandler>();
@@ -24,6 +25,7 @@ builder.Services.AddTransient<IUserService, UserService>();
 builder.Services.AddTransient<IChatService, ChatService>();
 builder.Services.AddTransient<ITransactionService, TransactionService>();
 builder.Services.AddTransient<IModelService, ModelService>();
+builder.Services.AddSingleton<IMCPTransportService, MCPTransportService>();
 builder.Services.AddAuthentication(options =>
                 {
                     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -67,7 +69,7 @@ var app = builder.Build();
 
 // Our custom middleware to disable compression for SSE endpoints
 app.UseDisableCompressionForSSE();
-
+app.UseWebSockets();
 app.UseResponseCompression();
 app.UseRouting();
 app.UseAuthentication();
