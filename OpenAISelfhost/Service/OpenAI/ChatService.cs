@@ -12,6 +12,7 @@ using OpenAISelfhost.DataContracts.Response.Chat;
 using OpenAISelfhost.Exceptions.Http;
 using OpenAISelfhost.Service.Billing;
 using OpenAISelfhost.Service.Interface;
+using OpenAISelfhost.Service.MCP;
 using OpenAISelfhost.Service.OpenAI.Utils;
 using OpenAISelfhost.Transports;
 using ChatMessage = Microsoft.Extensions.AI.ChatMessage;
@@ -23,6 +24,7 @@ namespace OpenAISelfhost.Service.OpenAI
     {
         private readonly IUserService userService;
         private readonly ITransactionService transactionService;
+        private readonly IMCPTransportService mcpRemoteTransportService;
 
         public ChatService(IUserService userService, ITransactionService transactionService)
         {
@@ -72,16 +74,32 @@ namespace OpenAISelfhost.Service.OpenAI
             var inputTokenCount = 0;
             var outputTokenCount = 0;
             var resultId = Guid.NewGuid().ToString();
+            // remote mcp
+            RemoteMcpTransport? remoteMcpTransport = null;
+            if (!string.IsNullOrEmpty(request.MCPCorrelationId))
+            {
+                remoteMcpTransport = mcpRemoteTransportService.GetTransport(request.MCPCorrelationId);
+            }
             var pipe = new MCPPipe();
             using var localMcpService = new LocalMCPService(pipe);
             _ = localMcpService.StartAsync();
             var clientTransport = new StreamClientTransport(pipe.ClientToServerPipe.Writer.AsStream(), pipe.ServerToClientPipe.Reader.AsStream());
             var mcpClient = await McpClientFactory.CreateAsync(clientTransport);
             var tools = await mcpClient.ListToolsAsync();
+            var toolsFromRemote = Enumerable.Empty<McpClientTool>();
+            if (remoteMcpTransport != null)
+            {
+                var remoteMcpClient = new StreamClientTransport(
+                    remoteMcpTransport.ClientToServerPipe.Writer.AsStream(),
+                    remoteMcpTransport.ServerToClientPipe.Reader.AsStream());
+                var mcpRemoteClient = await McpClientFactory.CreateAsync(clientTransport);
+                toolsFromRemote = await mcpRemoteClient.ListToolsAsync();
+            }
             var response = chatClient.GetStreamingResponseAsync(ToChatMessages(request), new()
             {
-                Tools = [.. tools],
+                Tools = [.. tools, .. toolsFromRemote],
             });
+            
             ChatFinishReason? lastReason = null;
             await foreach (var update in response)
             {
