@@ -78,8 +78,8 @@ namespace OpenAISelfhost.Transports
                     }
                     else if (result.MessageType == WebSocketMessageType.Binary)
                     {
-                        // binary preserved for MCP communication.
-                        HandleMCPProtocolMessage(buffer);
+                        var bufferSegment = new ArraySegment<byte>(buffer, 0, result.Count);
+                        HandleMCPProtocolMessage(bufferSegment.ToArray());
                     }
                     LastMessageReceived = DateTime.UtcNow;
                 }
@@ -135,7 +135,7 @@ namespace OpenAISelfhost.Transports
 
         public void HandleMCPProtocolMessage(byte[] message)
         {
-            ServerToClientPipe.Writer.Write(message);
+            ServerToClientPipe.Writer.AsStream().Write(message);
         }
 
         public void Dispose()

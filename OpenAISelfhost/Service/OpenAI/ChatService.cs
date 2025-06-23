@@ -26,10 +26,11 @@ namespace OpenAISelfhost.Service.OpenAI
         private readonly ITransactionService transactionService;
         private readonly IMCPTransportService mcpRemoteTransportService;
 
-        public ChatService(IUserService userService, ITransactionService transactionService)
+        public ChatService(IUserService userService, ITransactionService transactionService, IMCPTransportService mcpRemoteTransportService)
         {
             this.userService = userService;
             this.transactionService = transactionService;
+            this.mcpRemoteTransportService = mcpRemoteTransportService;
         }
 
         public async Task<ChatResponse> RequestCompletion(ChatModel model, ChatCompletionRequest request, int userId)
@@ -89,11 +90,28 @@ namespace OpenAISelfhost.Service.OpenAI
             var toolsFromRemote = Enumerable.Empty<McpClientTool>();
             if (remoteMcpTransport != null)
             {
-                var remoteMcpClient = new StreamClientTransport(
+                bool loaded = false;
+                try
+                {
+                    var remoteTransport = new StreamClientTransport(
                     remoteMcpTransport.ClientToServerPipe.Writer.AsStream(),
                     remoteMcpTransport.ServerToClientPipe.Reader.AsStream());
-                var mcpRemoteClient = await McpClientFactory.CreateAsync(clientTransport);
-                toolsFromRemote = await mcpRemoteClient.ListToolsAsync();
+                    var mcpRemoteClient = await McpClientFactory.CreateAsync(remoteTransport);
+                    toolsFromRemote = await mcpRemoteClient.ListToolsAsync();
+                    loaded = true;
+                }
+                catch (Exception)
+                {
+                }
+                if (!loaded)
+                {
+                    yield return new PartialChatResponse()
+                    {
+                        Data = "",
+                        IsEnd = false,
+                        FinishReason = "error_remote_mcp",
+                    };
+                }
             }
             var response = chatClient.GetStreamingResponseAsync(ToChatMessages(request), new()
             {
@@ -143,6 +161,10 @@ namespace OpenAISelfhost.Service.OpenAI
             user.RemainingCredit -= cost;
             userService.UpdateUser(user);
             transactionService.RecordTransaction(userId, resultId, inputTokenCount, outputTokenCount, inputTokenCount + outputTokenCount, model.Identifier, cost);
+            if (remoteMcpTransport != null)
+            {
+                remoteMcpTransport.Dispose();
+            }
             if (lastReason != ChatFinishReason.Stop)
             {
                 yield return new PartialChatResponse()
