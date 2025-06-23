@@ -1,4 +1,6 @@
-﻿using OpenAISelfhost.DataContracts.Response.MCP;
+﻿using OpenAISelfhost.DataContracts.Request.User;
+using OpenAISelfhost.DataContracts.Response.MCP;
+using OpenAISelfhost.Service.Interface;
 using System.Buffers;
 using System.IO.Pipelines;
 using System.Net.WebSockets;
@@ -15,46 +17,28 @@ namespace OpenAISelfhost.Transports
 
         public event Action? OnDisposing;
 
+        private bool authenticated { get; set; } = false;
+
         private readonly WebSocket webSocket;
         private readonly string correlationId;
 
         private DateTime LastMessageReceived { get; set; } = DateTime.UtcNow;
-        private readonly Timer heartBeatTimer;
         private readonly Task receiveDataFromWebSocketTask;
         private readonly Task receiveDataFromPipeTask;
         private readonly CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
         public Task WaitForCompletion() => Task.WhenAll([receiveDataFromWebSocketTask, receiveDataFromPipeTask]);
+        private readonly IServiceProvider serviceProvider;
 
-        public RemoteMcpTransport(WebSocket webSocket, string correlationId)
+        public RemoteMcpTransport(WebSocket webSocket, string correlationId, IServiceProvider serviceProvider)
         {
             this.webSocket = webSocket;
             this.correlationId = correlationId;
             ClientToServerPipe = new Pipe();
             ServerToClientPipe = new Pipe();
+            this.serviceProvider = serviceProvider;
 
             receiveDataFromPipeTask = ReceiveDataFromPipe(cancellationTokenSource.Token);
             receiveDataFromWebSocketTask = ReceiveDataFromWebSocket(cancellationTokenSource.Token);
-            heartBeatTimer = new Timer(SendHeartbeat, null, TimeSpan.Zero, TimeSpan.FromSeconds(10));
-        }
-
-        private void SendHeartbeat(object? _)
-        {
-            if (webSocket.State == WebSocketState.Open)
-            {
-                var heartbeatMessage = new MCPTransportResponse()
-                {
-                    CorrelationId = correlationId,
-                };
-                _ = webSocket.SendAsync(
-                    new ArraySegment<byte>(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(heartbeatMessage))),
-                    WebSocketMessageType.Text,
-                    true,
-                    CancellationToken.None);
-            }
-            else
-            {
-                Dispose();
-            }
         }
 
         private async Task ReceiveDataFromWebSocket(CancellationToken token)
@@ -122,6 +106,18 @@ namespace OpenAISelfhost.Transports
 
         public void HandleControlMessages(string message)
         {
+            if (!authenticated)
+            {
+                using var scope = serviceProvider.CreateScope();
+                var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
+                var authPayload = JsonSerializer.Deserialize<AuthPayload>(message);
+                authenticated = userService.ValidateToken(authPayload?.Token ?? string.Empty);
+                if (!authenticated)
+                {
+                    Dispose();
+                    return;
+                }
+            }
             var response = new MCPTransportResponse()
             {
                 CorrelationId = correlationId
@@ -135,13 +131,16 @@ namespace OpenAISelfhost.Transports
 
         public void HandleMCPProtocolMessage(byte[] message)
         {
+            if(!authenticated)
+            {
+                return;
+            }
             ServerToClientPipe.Writer.AsStream().Write(message);
         }
 
         public void Dispose()
         {
             Disposed = true;
-            this.heartBeatTimer.Dispose();
             OnDisposing?.Invoke();
             cancellationTokenSource.Cancel();
             if (webSocket != null && webSocket.State == WebSocketState.Open)

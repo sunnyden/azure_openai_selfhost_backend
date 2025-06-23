@@ -78,6 +78,30 @@ namespace OpenAISelfhost.Service
             return Convert.ToBase64String(hash);
         }
 
+        public bool ValidateToken(string token)
+        {
+            var tokenHandler = new JwtSecurityTokenHandler();
+            var validationParameters = new TokenValidationParameters()
+            {
+                ValidateIssuer = true,
+                ValidateAudience = true,
+                ValidAudience = configuration["JWT:ValidAudience"],
+                ValidIssuer = configuration["JWT:ValidIssuer"],
+                ClockSkew = TimeSpan.Zero,
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(configuration["JWT:Secret"]))
+            };
+
+            try
+            {
+                tokenHandler.ValidateToken(token, validationParameters, out var validatedToken);
+                return validatedToken != null;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         private string GenerateToken(IEnumerable<Claim> claims)
         {
             var secret = configuration["JWT:Secret"];

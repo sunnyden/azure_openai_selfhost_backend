@@ -7,6 +7,12 @@ namespace OpenAISelfhost.Service.MCP
     public class MCPTransportService : IMCPTransportService
     {
         private readonly ConcurrentDictionary<string, RemoteMcpTransport> transports = new ConcurrentDictionary<string, RemoteMcpTransport>();
+        private readonly IServiceProvider serviceProvider;
+
+        public MCPTransportService(IServiceProvider serviceProvider)
+        {
+            this.serviceProvider = serviceProvider;
+        }
 
         public RemoteMcpTransport? GetTransport(string correlationId)
         {
@@ -20,7 +26,7 @@ namespace OpenAISelfhost.Service.MCP
         public RemoteMcpTransport AddTransport(WebSocket socket)
         {
             var correlationId = GenerateGuid();
-            var transport = new RemoteMcpTransport(socket, correlationId);
+            var transport = new RemoteMcpTransport(socket, correlationId, serviceProvider);
             transport.OnDisposing += () =>
             {
                 transports.TryRemove(correlationId, out _);
