@@ -1,6 +1,5 @@
-﻿using System.Text.Json;
-using System.Text.Json.Serialization;
-using Azure;
+﻿using Azure;
+using Azure.AI.Inference;
 using Azure.AI.OpenAI;
 using Microsoft.Extensions.AI;
 using ModelContextProtocol.Client;
@@ -15,8 +14,12 @@ using OpenAISelfhost.Service.Interface;
 using OpenAISelfhost.Service.MCP;
 using OpenAISelfhost.Service.OpenAI.Utils;
 using OpenAISelfhost.Transports;
+using System.Net;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using ChatMessage = Microsoft.Extensions.AI.ChatMessage;
 using ChatResponse = OpenAISelfhost.DataContracts.Response.Chat.ChatResponse;
+using ChatRole = Microsoft.Extensions.AI.ChatRole;
 
 namespace OpenAISelfhost.Service.OpenAI
 {
@@ -67,8 +70,12 @@ namespace OpenAISelfhost.Service.OpenAI
             if (user.RemainingCredit <= 0)
                 throw new InsufficientTokenException("You don't have enough token to execute this request");
             var openAIClient = new AzureOpenAIClient(new Uri(model.Endpoint), new AzureKeyCredential(model.Key));
-            var openAIChatClient = openAIClient.GetChatClient(model.Deployment);
-            var chatClient = openAIChatClient.AsIChatClient()
+            var azureInferenceClient = new ChatCompletionsClient(
+                new Uri(model.Endpoint),
+                new AzureKeyCredential(model.Key),
+                new AzureAIInferenceClientOptions()
+            );
+            var chatClient = azureInferenceClient.AsIChatClient(model.Deployment)
                 .AsBuilder()
                 .UseFunctionInvocation()
                 .Build();
@@ -84,9 +91,15 @@ namespace OpenAISelfhost.Service.OpenAI
             var pipe = new MCPPipe();
             using var localMcpService = new LocalMCPService(pipe);
             _ = localMcpService.StartAsync();
-            var clientTransport = new StreamClientTransport(pipe.ClientToServerPipe.Writer.AsStream(), pipe.ServerToClientPipe.Reader.AsStream());
-            var mcpClient = await McpClientFactory.CreateAsync(clientTransport);
-            var tools = await mcpClient.ListToolsAsync();
+            var tools = Enumerable.Empty<McpClientTool>();
+            try
+            {
+                var clientTransport = new StreamClientTransport(pipe.ClientToServerPipe.Writer.AsStream(), pipe.ServerToClientPipe.Reader.AsStream());
+                var mcpClient = await McpClientFactory.CreateAsync(clientTransport);
+                tools = await mcpClient.ListToolsAsync();
+            }
+            catch (Exception) { }
+            
             var toolsFromRemote = Enumerable.Empty<McpClientTool>();
             if (remoteMcpTransport != null)
             {
