@@ -1,5 +1,4 @@
 ﻿using Azure;
-using Azure.AI.Inference;
 using Azure.AI.OpenAI;
 using Microsoft.Extensions.AI;
 using ModelContextProtocol.Client;
@@ -15,7 +14,6 @@ using OpenAISelfhost.Service.MCP;
 using OpenAISelfhost.Service.OpenAI.Utils;
 using OpenAISelfhost.Transports;
 using System.Net;
-using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using ChatMessage = Microsoft.Extensions.AI.ChatMessage;
@@ -70,18 +68,18 @@ namespace OpenAISelfhost.Service.OpenAI
                 throw new AuthorizationException("Unable to find user for billing");
             if (user.RemainingCredit <= 0)
                 throw new InsufficientTokenException("You don't have enough token to execute this request");
-            var aiInferenceOptions = new AzureAIInferenceClientOptions();
-            var field = typeof(AzureAIInferenceClientOptions).GetField("<Version>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic);
-            field?.SetValue(aiInferenceOptions, "2024-11-01-preview");
-            var azureInferenceClient = new ChatCompletionsClient(
-                new Uri(model.Endpoint),
-                new AzureKeyCredential(model.Key),
-                aiInferenceOptions
-            );
-            var chatClient = azureInferenceClient.AsIChatClient(model.Deployment)
-                .AsBuilder()
-                .UseFunctionInvocation()
-                .Build();
+            var openAIClient = new AzureOpenAIClient(new Uri(model.Endpoint), new AzureKeyCredential(model.Key));
+            var openAIChatClient = openAIClient.GetChatClient(model.Deployment);
+            var chatClientBuilder = openAIChatClient.AsIChatClient()
+                .AsBuilder();
+            
+            // Only enable function invocation if model supports tools
+            if (model.SupportTool)
+            {
+                chatClientBuilder = chatClientBuilder.UseFunctionInvocation();
+            }
+            
+            var chatClient = chatClientBuilder.Build();
             var inputTokenCount = 0;
             var outputTokenCount = 0;
             var resultId = Guid.NewGuid().ToString();
