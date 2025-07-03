@@ -89,6 +89,7 @@ namespace OpenAISelfhost.Service.OpenAI
             var tools = Enumerable.Empty<McpClientTool>();
             var toolsFromRemote = Enumerable.Empty<McpClientTool>();
             RemoteMcpTransport? remoteMcpTransport = null;
+            LocalMCPService? localMcpService = null;
             
             // Only load tools if model supports them
             if (model.SupportTool)
@@ -99,7 +100,7 @@ namespace OpenAISelfhost.Service.OpenAI
                     remoteMcpTransport = mcpRemoteTransportService.GetTransport(request.MCPCorrelationId);
                 }
                 var pipe = new MCPPipe();
-                using var localMcpService = new LocalMCPService(pipe);
+                localMcpService = new LocalMCPService(pipe);
                 _ = localMcpService.StartAsync();
                 
                 try
@@ -189,6 +190,12 @@ namespace OpenAISelfhost.Service.OpenAI
             if (remoteMcpTransport != null)
             {
                 remoteMcpTransport.Dispose();
+            }
+            
+            // Dispose local MCP service after streaming is complete
+            if (localMcpService != null)
+            {
+                localMcpService.Dispose();
             }
             
             if (lastReason != ChatFinishReason.Stop)
