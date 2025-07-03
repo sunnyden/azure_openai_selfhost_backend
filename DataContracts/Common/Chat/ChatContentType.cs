@@ -22,7 +22,9 @@ namespace OpenAISelfhost.DataContracts.Common.Chat
                 case ChatContentType.Text:
                     return "text";
                 case ChatContentType.Image:
-                    return "image_url";
+                    return "image";
+                case ChatContentType.Audio:
+                    return "audio";
                 default:
                     throw new ArgumentException("Invalid content type");
             }
@@ -34,8 +36,10 @@ namespace OpenAISelfhost.DataContracts.Common.Chat
             {
                 case "text":
                     return ChatContentType.Text;
-                case "image_url":
+                case "image":
                     return ChatContentType.Image;
+                case "audio":
+                    return ChatContentType.Audio;
                 default:
                     throw new ArgumentException("Invalid content type");
             }
