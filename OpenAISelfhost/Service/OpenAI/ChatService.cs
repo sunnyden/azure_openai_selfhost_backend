@@ -247,7 +247,8 @@ namespace OpenAISelfhost.Service.OpenAI
                 var aiContent = message.Content.Select<ChatContentItem, AIContent>(c => c.Type switch
                 {
                     ChatContentType.Text => new TextContent(c.Text),
-                    ChatContentType.Image => ToImageData(c.ImageUrl!),
+                    ChatContentType.Image => ToBlobData(c.Base64Data!),
+                    ChatContentType.Audio => ToBlobData(c.Base64Data!),
                     _ => throw new Exception("Invalid chat content type"),
                 }).ToList();
                 yield return message.Role switch
@@ -260,7 +261,7 @@ namespace OpenAISelfhost.Service.OpenAI
             }
         }
 
-        private static DataContent ToImageData(string base64)
+        private static DataContent ToBlobData(string base64)
         {
             var mimeType = base64.Split(',')[0].Split(':')[1].Split(';')[0];
             var data = base64.Split(',')[1];

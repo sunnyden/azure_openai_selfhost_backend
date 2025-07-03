@@ -16,6 +16,6 @@ namespace OpenAISelfhost.DataContracts.Common.Chat
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public string? Text { get; set; }
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-        public string? ImageUrl { get; set; }
+        public string? Base64Data { get; set; }
     }
 }

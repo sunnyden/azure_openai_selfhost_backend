@@ -9,7 +9,8 @@ namespace OpenAISelfhost.DataContracts.Common.Chat
     public enum ChatContentType
     {
         Text,
-        Image
+        Image,
+        Audio
     }
 
     public static class ChatContentTypeExtensions
