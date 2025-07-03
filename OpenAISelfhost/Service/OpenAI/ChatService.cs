@@ -230,7 +230,7 @@ namespace OpenAISelfhost.Service.OpenAI
                 var aiContent = message.Content.Select<ChatContentItem, AIContent>(c => c.Type switch
                 {
                     ChatContentType.Text => new TextContent(c.Text),
-                    ChatContentType.Image => new UriContent(c.ImageUrl!, "image"),
+                    ChatContentType.Image => ToImageData(c.ImageUrl!),
                     _ => throw new Exception("Invalid chat content type"),
                 }).ToList();
                 yield return message.Role switch
@@ -241,6 +241,13 @@ namespace OpenAISelfhost.Service.OpenAI
                     _ => throw new Exception("Invalid chat role"),
                 };
             }
+        }
+
+        private static DataContent ToImageData(string base64)
+        {
+            var mimeType = base64.Split(',')[0].Split(':')[1].Split(';')[0];
+            var data = base64.Split(',')[1];
+            return new DataContent(Convert.FromBase64String(data), mimeType);
         }
     }
 }
