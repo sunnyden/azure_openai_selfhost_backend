@@ -69,11 +69,10 @@ namespace OpenAISelfhost.Service.OpenAI
                 throw new AuthorizationException("Unable to find user for billing");
             if (user.RemainingCredit <= 0)
                 throw new InsufficientTokenException("You don't have enough token to execute this request");
-            var openAIClient = new AzureOpenAIClient(new Uri(model.Endpoint), new AzureKeyCredential(model.Key));
             var azureInferenceClient = new ChatCompletionsClient(
                 new Uri(model.Endpoint),
                 new AzureKeyCredential(model.Key),
-                new AzureAIInferenceClientOptions()
+                new ClientVersionOverride()
             );
             var chatClient = azureInferenceClient.AsIChatClient(model.Deployment)
                 .AsBuilder()
