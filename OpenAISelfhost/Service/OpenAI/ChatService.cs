@@ -15,6 +15,7 @@ using OpenAISelfhost.Service.MCP;
 using OpenAISelfhost.Service.OpenAI.Utils;
 using OpenAISelfhost.Transports;
 using System.Net;
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using ChatMessage = Microsoft.Extensions.AI.ChatMessage;
@@ -69,10 +70,13 @@ namespace OpenAISelfhost.Service.OpenAI
                 throw new AuthorizationException("Unable to find user for billing");
             if (user.RemainingCredit <= 0)
                 throw new InsufficientTokenException("You don't have enough token to execute this request");
+            var aiInferenceOptions = new AzureAIInferenceClientOptions();
+            var field = typeof(AzureAIInferenceClientOptions).GetField("<Version>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic);
+            field?.SetValue(aiInferenceOptions, "2024-11-01-preview");
             var azureInferenceClient = new ChatCompletionsClient(
                 new Uri(model.Endpoint),
                 new AzureKeyCredential(model.Key),
-                new ClientVersionOverride()
+                aiInferenceOptions
             );
             var chatClient = azureInferenceClient.AsIChatClient(model.Deployment)
                 .AsBuilder()
