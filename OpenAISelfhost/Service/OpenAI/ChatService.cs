@@ -227,12 +227,17 @@ namespace OpenAISelfhost.Service.OpenAI
         {
             foreach (var message in request.Messages)
             {
-                var content = string.Join("\n", message.Content.Select(c => c.Text));
+                var aiContent = message.Content.Select<ChatContentItem, AIContent>(c => c.Type switch
+                {
+                    ChatContentType.Text => new TextContent(c.Text),
+                    ChatContentType.Image => new UriContent(c.ImageUrl!, "image"),
+                    _ => throw new Exception("Invalid chat content type"),
+                }).ToList();
                 yield return message.Role switch
                 {
-                    ConversationRole.User => new ChatMessage(ChatRole.User, content),
-                    ConversationRole.Assistant => new ChatMessage(ChatRole.Assistant, content),
-                    ConversationRole.System => new ChatMessage(ChatRole.System, content),
+                    ConversationRole.User => new ChatMessage(ChatRole.User, aiContent),
+                    ConversationRole.Assistant => new ChatMessage(ChatRole.Assistant, aiContent),
+                    ConversationRole.System => new ChatMessage(ChatRole.System, aiContent),
                     _ => throw new Exception("Invalid chat role"),
                 };
             }
