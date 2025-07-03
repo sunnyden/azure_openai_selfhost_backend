@@ -82,50 +82,63 @@ namespace OpenAISelfhost.Service.OpenAI
             var inputTokenCount = 0;
             var outputTokenCount = 0;
             var resultId = Guid.NewGuid().ToString();
-            // remote mcp
-            RemoteMcpTransport? remoteMcpTransport = null;
-            if (!string.IsNullOrEmpty(request.MCPCorrelationId))
-            {
-                remoteMcpTransport = mcpRemoteTransportService.GetTransport(request.MCPCorrelationId);
-            }
-            var pipe = new MCPPipe();
-            using var localMcpService = new LocalMCPService(pipe);
-            _ = localMcpService.StartAsync();
-            var tools = Enumerable.Empty<McpClientTool>();
-            try
-            {
-                var clientTransport = new StreamClientTransport(pipe.ClientToServerPipe.Writer.AsStream(), pipe.ServerToClientPipe.Reader.AsStream());
-                var mcpClient = await McpClientFactory.CreateAsync(clientTransport);
-                tools = await mcpClient.ListToolsAsync();
-            }
-            catch (Exception) { }
             
+            var tools = Enumerable.Empty<McpClientTool>();
             var toolsFromRemote = Enumerable.Empty<McpClientTool>();
-            if (remoteMcpTransport != null)
+            
+            // Only load tools if model supports them
+            if (model.SupportTool)
             {
-                bool loaded = false;
+                // remote mcp
+                RemoteMcpTransport? remoteMcpTransport = null;
+                if (!string.IsNullOrEmpty(request.MCPCorrelationId))
+                {
+                    remoteMcpTransport = mcpRemoteTransportService.GetTransport(request.MCPCorrelationId);
+                }
+                var pipe = new MCPPipe();
+                using var localMcpService = new LocalMCPService(pipe);
+                _ = localMcpService.StartAsync();
+                
                 try
                 {
-                    var remoteTransport = new StreamClientTransport(
-                    remoteMcpTransport.ClientToServerPipe.Writer.AsStream(),
-                    remoteMcpTransport.ServerToClientPipe.Reader.AsStream());
-                    var mcpRemoteClient = await McpClientFactory.CreateAsync(remoteTransport);
-                    toolsFromRemote = await mcpRemoteClient.ListToolsAsync();
-                    loaded = true;
+                    var clientTransport = new StreamClientTransport(pipe.ClientToServerPipe.Writer.AsStream(), pipe.ServerToClientPipe.Reader.AsStream());
+                    var mcpClient = await McpClientFactory.CreateAsync(clientTransport);
+                    tools = await mcpClient.ListToolsAsync();
                 }
-                catch (Exception)
+                catch (Exception) { }
+                
+                if (remoteMcpTransport != null)
                 {
-                }
-                if (!loaded)
-                {
-                    yield return new PartialChatResponse()
+                    bool loaded = false;
+                    try
                     {
-                        Data = "",
-                        IsEnd = false,
-                        FinishReason = "error_remote_mcp",
-                    };
+                        var remoteTransport = new StreamClientTransport(
+                        remoteMcpTransport.ClientToServerPipe.Writer.AsStream(),
+                        remoteMcpTransport.ServerToClientPipe.Reader.AsStream());
+                        var mcpRemoteClient = await McpClientFactory.CreateAsync(remoteTransport);
+                        toolsFromRemote = await mcpRemoteClient.ListToolsAsync();
+                        loaded = true;
+                    }
+                    catch (Exception)
+                    {
+                    }
+                    if (!loaded)
+                    {
+                        yield return new PartialChatResponse()
+                        {
+                            Data = "",
+                            IsEnd = false,
+                            FinishReason = "error_remote_mcp",
+                        };
+                    }
+                }
+                
+                if (remoteMcpTransport != null)
+                {
+                    remoteMcpTransport.Dispose();
                 }
             }
+            
             var response = chatClient.GetStreamingResponseAsync(ToChatMessages(request), new()
             {
                 Tools = [.. tools, .. toolsFromRemote],
@@ -173,10 +186,6 @@ namespace OpenAISelfhost.Service.OpenAI
             user.RemainingCredit -= cost;
             userService.UpdateUser(user);
             transactionService.RecordTransaction(userId, resultId, inputTokenCount, outputTokenCount, inputTokenCount + outputTokenCount, model.Identifier, cost);
-            if (remoteMcpTransport != null)
-            {
-                remoteMcpTransport.Dispose();
-            }
             if (lastReason != ChatFinishReason.Stop)
             {
                 yield return new PartialChatResponse()
@@ -204,10 +213,16 @@ namespace OpenAISelfhost.Service.OpenAI
         {
             var openAIClient = new AzureOpenAIClient(new Uri(model.Endpoint), new AzureKeyCredential(model.Key));
             var openAIChatClient = openAIClient.GetChatClient(model.Deployment);
-            var chatClient = openAIChatClient.AsIChatClient()
-                .AsBuilder()
-                .UseFunctionInvocation()
-                .Build();
+            var chatClientBuilder = openAIChatClient.AsIChatClient()
+                .AsBuilder();
+            
+            // Only enable function invocation if model supports tools
+            if (model.SupportTool)
+            {
+                chatClientBuilder = chatClientBuilder.UseFunctionInvocation();
+            }
+            
+            var chatClient = chatClientBuilder.Build();
             var response = await chatClient.GetResponseAsync(ToChatMessages(request));
 
             var result = new ChatResponse()

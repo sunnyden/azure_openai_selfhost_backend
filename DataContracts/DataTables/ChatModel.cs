@@ -35,5 +35,8 @@ namespace OpenAISelfhost.DataContracts.DataTables
 
         [Column("max_tokens")]
         public int MaxTokens { get; set; }
+
+        [Column("use_tool")]
+        public bool SupportTool { get; set; }
     }
 }
