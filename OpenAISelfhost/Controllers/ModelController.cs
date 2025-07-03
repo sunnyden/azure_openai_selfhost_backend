@@ -56,7 +56,8 @@ namespace OpenAISelfhost.Controllers
                 Deployment = request.Deployment,
                 MaxTokens = request.MaxTokens,
                 CostResponseToken = request.CostResponseToken,
-                CostPromptToken = request.CostPromptToken
+                CostPromptToken = request.CostPromptToken,
+                SupportTool = request.SupportTool
             };
             modelService.AddModel(model);
             return new();
@@ -80,6 +81,7 @@ namespace OpenAISelfhost.Controllers
 
             newModel.CostResponseToken = request.CostResponseToken;
             newModel.CostPromptToken = request.CostPromptToken;
+            newModel.SupportTool = request.SupportTool;
             modelService.UpdateModel(newModel);
             return new();
         }
