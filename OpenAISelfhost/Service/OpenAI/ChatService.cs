@@ -85,12 +85,12 @@ namespace OpenAISelfhost.Service.OpenAI
             
             var tools = Enumerable.Empty<McpClientTool>();
             var toolsFromRemote = Enumerable.Empty<McpClientTool>();
+            RemoteMcpTransport? remoteMcpTransport = null;
             
             // Only load tools if model supports them
             if (model.SupportTool)
             {
                 // remote mcp
-                RemoteMcpTransport? remoteMcpTransport = null;
                 if (!string.IsNullOrEmpty(request.MCPCorrelationId))
                 {
                     remoteMcpTransport = mcpRemoteTransportService.GetTransport(request.MCPCorrelationId);
@@ -131,11 +131,6 @@ namespace OpenAISelfhost.Service.OpenAI
                             FinishReason = "error_remote_mcp",
                         };
                     }
-                }
-                
-                if (remoteMcpTransport != null)
-                {
-                    remoteMcpTransport.Dispose();
                 }
             }
             
@@ -186,6 +181,13 @@ namespace OpenAISelfhost.Service.OpenAI
             user.RemainingCredit -= cost;
             userService.UpdateUser(user);
             transactionService.RecordTransaction(userId, resultId, inputTokenCount, outputTokenCount, inputTokenCount + outputTokenCount, model.Identifier, cost);
+            
+            // Dispose remote transport after streaming is complete
+            if (remoteMcpTransport != null)
+            {
+                remoteMcpTransport.Dispose();
+            }
+            
             if (lastReason != ChatFinishReason.Stop)
             {
                 yield return new PartialChatResponse()
