@@ -137,10 +137,17 @@ namespace OpenAISelfhost.Service.OpenAI
                     }
                 }
             }
-            
+
             var response = chatClient.GetStreamingResponseAsync(ToChatMessages(request), new()
             {
                 Tools = [.. tools, .. toolsFromRemote],
+                AdditionalProperties = new()
+                {
+                    [ "stream_options" ] = new
+                    {
+                        include_usage = true
+                    }
+                }
             });
             
             ChatFinishReason? lastReason = null;
