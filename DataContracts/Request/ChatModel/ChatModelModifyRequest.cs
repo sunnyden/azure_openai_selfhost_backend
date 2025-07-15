@@ -30,5 +30,7 @@ namespace OpenAISelfhost.DataContracts.Request.ChatModel
         public int MaxTokens { get; set; }
 
         public bool SupportTool { get; set; }
+
+        public string? ApiVersionOverride { get; set; }
     }
 }
