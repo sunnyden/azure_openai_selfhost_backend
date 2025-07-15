@@ -38,5 +38,8 @@ namespace OpenAISelfhost.DataContracts.DataTables
 
         [Column("use_tool")]
         public bool SupportTool { get; set; }
+
+        [Column("api_version_override")]
+        public string? ApiVersionOverride { get; set; }
     }
 }

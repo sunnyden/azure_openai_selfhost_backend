@@ -72,7 +72,7 @@ namespace OpenAISelfhost.Service.OpenAI
                 throw new InsufficientTokenException("You don't have enough token to execute this request");
             var aiInferenceOptions = new AzureAIInferenceClientOptions();
             var field = typeof(AzureAIInferenceClientOptions).GetField("<Version>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic);
-            field?.SetValue(aiInferenceOptions, "2024-11-01-preview");
+            field?.SetValue(aiInferenceOptions, model.ApiVersionOverride ?? "2024-11-01-preview");
             var azureInferenceClient = new ChatCompletionsClient(
                 new Uri(model.Endpoint),
                 new AzureKeyCredential(model.Key),
