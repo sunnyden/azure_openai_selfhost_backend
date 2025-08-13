@@ -41,5 +41,8 @@ namespace OpenAISelfhost.DataContracts.DataTables
 
         [Column("api_version_override")]
         public string? ApiVersionOverride { get; set; }
+
+        [Column("reasoning_model")]
+        public bool ReasoningModel { get; set; }
     }
 }

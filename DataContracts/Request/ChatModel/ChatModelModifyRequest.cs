@@ -32,5 +32,7 @@ namespace OpenAISelfhost.DataContracts.Request.ChatModel
         public bool SupportTool { get; set; }
 
         public string? ApiVersionOverride { get; set; }
+
+        public bool ReasoningModel { get; set; }
     }
 }
