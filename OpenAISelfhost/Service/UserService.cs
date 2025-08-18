@@ -139,5 +139,32 @@ namespace OpenAISelfhost.Service
         {
             return databaseContext.Users.Where(user => user.Id == userId).Any();
         }
+
+        public void ProcessMonthlyCreditReset()
+        {
+            var now = DateTime.UtcNow;
+            var firstDayOfCurrentMonth = new DateTime(now.Year, now.Month, 1);
+            
+            // Get all users who need credit reset
+            var usersToReset = databaseContext.Users
+                .Where(user => 
+                    // User has remaining credit less than quota
+                    user.RemainingCredit < user.CreditQuota &&
+                    // Either never reset before or last reset was before this month
+                    (user.LastCreditReset == null || user.LastCreditReset < firstDayOfCurrentMonth))
+                .ToList();
+
+            foreach (var user in usersToReset)
+            {
+                // Refill user's credit to the exact amount defined in quota
+                user.RemainingCredit = user.CreditQuota;
+                user.LastCreditReset = now;
+            }
+
+            if (usersToReset.Any())
+            {
+                databaseContext.SaveChanges();
+            }
+        }
     }
 }
