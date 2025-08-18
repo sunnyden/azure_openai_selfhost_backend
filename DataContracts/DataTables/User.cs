@@ -22,5 +22,7 @@ namespace OpenAISelfhost.DataContracts.DataTables
         public double RemainingCredit { get; set; }
         [Column("credit_quota")]
         public double CreditQuota { get; set; }
+        [Column("last_credit_reset")]
+        public DateTime? LastCreditReset { get; set; }
     }
 }

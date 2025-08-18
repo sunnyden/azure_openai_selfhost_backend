@@ -13,5 +13,6 @@ namespace OpenAISelfhost.Service.Interface
         public void DeleteUser(User user);
         public bool UserExists(int userId);
         public bool ValidateToken(string token);
+        public void ProcessMonthlyCreditReset();
     }
 }
