@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using OpenAISelfhost.Controllers.Utils;
 using OpenAISelfhost.DataContracts.Common.Chat;
 using OpenAISelfhost.DataContracts.Enums;
 using OpenAISelfhost.DataContracts.Request.ChatHistory;
