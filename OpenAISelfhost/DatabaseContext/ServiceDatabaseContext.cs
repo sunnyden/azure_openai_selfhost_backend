@@ -11,10 +11,14 @@ namespace OpenAISelfhost.DatabaseContext
         {
             modelBuilder.Entity<UserModelAssignment>()
                 .HasKey(uma => new { uma.UserId, uma.ModelIdentifier });
+
+            modelBuilder.Entity<ChatHistory>()
+                .HasKey(ch => new { ch.Id, ch.UserId });
         }
         public DbSet<User> Users { get; set; }
         public DbSet<Transaction> Transactions { get; set; }
         public DbSet<ChatModel> ChatModels { get; set; }
         public DbSet<UserModelAssignment> UserModelAssignments { get; set; }
+        public DbSet<ChatHistory> ChatHistories { get; set; }
     }
 }

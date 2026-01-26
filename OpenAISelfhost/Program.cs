@@ -25,6 +25,7 @@ builder.Services.AddTransient<IUserService, UserService>();
 builder.Services.AddTransient<IChatService, ChatService>();
 builder.Services.AddTransient<ITransactionService, TransactionService>();
 builder.Services.AddTransient<IModelService, ModelService>();
+builder.Services.AddTransient<Service.ChatHistory.IChatHistoryService, Service.ChatHistory.ChatHistoryService>();
 builder.Services.AddSingleton<IMCPTransportService, MCPTransportService>();
 builder.Services.AddHostedService<CreditResetBackgroundService>();
 builder.Services.AddAuthentication(options =>
