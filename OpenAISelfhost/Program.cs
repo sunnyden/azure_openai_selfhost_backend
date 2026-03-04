@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using OpenAISelfhost.DatabaseContext;
 using OpenAISelfhost.DataContracts.Utils.Serialization.Chat;
@@ -8,7 +9,6 @@ using OpenAISelfhost.Service;
 using OpenAISelfhost.Service.Billing;
 using OpenAISelfhost.Service.Interface;
 using OpenAISelfhost.Service.OpenAI;
-using System.Text;
 using OpenAISelfhost.Middleware;
 using OpenAISelfhost.Service.MCP;
 using OpenAISelfhost.Service.ChatHistory;
@@ -22,6 +22,9 @@ builder.Services.AddControllersWithViews()
                     options.JsonSerializerOptions.Converters.Add(new JsonChatRoleConverter());
                     options.JsonSerializerOptions.Converters.Add(new JsonChatContentTypeConverter());
                 });
+builder.Services.AddSingleton<RsaKeyService>();
+builder.Services.AddSingleton<IRsaKeyService>(sp => sp.GetRequiredService<RsaKeyService>());
+builder.Services.AddHostedService(sp => sp.GetRequiredService<RsaKeyService>());
 builder.Services.AddTransient<IUserService, UserService>();
 builder.Services.AddTransient<IChatService, ChatService>();
 builder.Services.AddTransient<ITransactionService, TransactionService>();
@@ -45,10 +48,20 @@ builder.Services.AddAuthentication(options =>
                         ValidateAudience = true,
                         ValidAudience = builder.Configuration["JWT:ValidAudience"],
                         ValidIssuer = builder.Configuration["JWT:ValidIssuer"],
-                        ClockSkew = TimeSpan.Zero,
-                        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JWT:Secret"]))
+                        ClockSkew = TimeSpan.Zero
                     };
                 });
+// Wire the RSA key resolver after the service provider is built so that
+// IssuerSigningKeyResolver always uses the current in-memory RSA key pair.
+builder.Services.AddSingleton<IPostConfigureOptions<JwtBearerOptions>>(sp =>
+{
+    var rsaKeyService = sp.GetRequiredService<IRsaKeyService>();
+    return new PostConfigureOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, opts =>
+    {
+        opts.TokenValidationParameters.IssuerSigningKeyResolver =
+            (_, _, _, _) => rsaKeyService.GetValidationKeys();
+    });
+});
 var serverVersion = new MySqlServerVersion(new Version(8, 0, 35));
 builder.Services.AddDbContext<ServiceDatabaseContext>(options => options.UseMySql(builder.Configuration.GetConnectionString("DBConn"), serverVersion));
 

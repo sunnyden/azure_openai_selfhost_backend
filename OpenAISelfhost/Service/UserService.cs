@@ -15,10 +15,12 @@ namespace OpenAISelfhost.Service
     {
         private readonly ServiceDatabaseContext databaseContext;
         private readonly IConfiguration configuration;
-        public UserService(ServiceDatabaseContext databaseContext, IConfiguration configuration)
+        private readonly IRsaKeyService rsaKeyService;
+        public UserService(ServiceDatabaseContext databaseContext, IConfiguration configuration, IRsaKeyService rsaKeyService)
         {
             this.databaseContext = databaseContext;
             this.configuration = configuration;
+            this.rsaKeyService = rsaKeyService;
         }
         public void CreateUser(string userName, string password, bool isAdmin, double credit, double creditQuota)
         {
@@ -88,7 +90,7 @@ namespace OpenAISelfhost.Service
                 ValidAudience = configuration["JWT:ValidAudience"],
                 ValidIssuer = configuration["JWT:ValidIssuer"],
                 ClockSkew = TimeSpan.Zero,
-                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(configuration["JWT:Secret"]))
+                IssuerSigningKeys = rsaKeyService.GetValidationKeys()
             };
 
             try
@@ -104,19 +106,14 @@ namespace OpenAISelfhost.Service
 
         private string GenerateToken(IEnumerable<Claim> claims)
         {
-            var secret = configuration["JWT:Secret"];
-            if (string.IsNullOrEmpty(secret))
-            {
-                throw new NullReferenceException("JWT secret is not set");
-            }
-            var authSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret));
+            var signingKey = rsaKeyService.GetCurrentSigningKey();
 
             var tokenDescriptor = new SecurityTokenDescriptor
             {
                 Issuer = configuration["JWT:ValidIssuer"],
                 Audience = configuration["JWT:ValidAudience"],
                 Expires = DateTime.UtcNow.AddHours(3),
-                SigningCredentials = new SigningCredentials(authSigningKey, SecurityAlgorithms.HmacSha256),
+                SigningCredentials = new SigningCredentials(signingKey, SecurityAlgorithms.RsaSha256),
                 Subject = new ClaimsIdentity(claims)
             };
 
