@@ -5,6 +5,7 @@ using OpenAISelfhost.DataContracts.Enums;
 using OpenAISelfhost.DataContracts.Request.ChatModel;
 using OpenAISelfhost.DataContracts.Response.Common;
 using OpenAISelfhost.Exceptions.Http;
+using OpenAISelfhost.Service.Interface;
 using OpenAISelfhost.Service.OpenAI;
 
 namespace OpenAISelfhost.Controllers
@@ -14,10 +15,12 @@ namespace OpenAISelfhost.Controllers
     public class ModelController : ApiControllerBase
     {
         private readonly IModelService modelService;
+        private readonly IUserService userService;
 
-        public ModelController(IModelService modelService)
+        public ModelController(IModelService modelService, IUserService userService)
         {
             this.modelService = modelService;
+            this.userService = userService;
         }
 
         [HttpGet("list")]
@@ -96,6 +99,20 @@ namespace OpenAISelfhost.Controllers
         {
             modelService.DeleteModel(model.Model);
             return new();
+        }
+
+        [HttpGet("user-assigned")]
+        [Authorize(Roles = UserType.Admin)]
+        public ApiResponse<IEnumerable<ChatModel>> ListModelsForUser([FromQuery] int userId)
+        {
+            if (userId <= 0)
+                throw new InvalidPayloadException("userId must be a positive integer");
+            if (!userService.UserExists(userId))
+                throw new UserNotFoundException($"User with id {userId} not found");
+            return new()
+            {
+                Data = modelService.GetModelsForUser(userId)
+            };
         }
 
         [HttpPost("assign")]

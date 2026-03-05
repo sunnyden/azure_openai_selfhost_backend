@@ -22,6 +22,7 @@ Non-admin requests to these endpoints will receive a `403 Forbidden` response.
   - [POST /user/delete](#post-userdelete)
 - [Model Management](#model-management)
   - [GET /model/all](#get-modelall)
+  - [GET /model/user-assigned](#get-modeluser-assigned)
   - [POST /model/add](#post-modeladd)
   - [POST /model/update](#post-modelupdate)
   - [POST /model/delete](#post-modeldelete)
@@ -279,6 +280,62 @@ Returns **all** AI models registered in the system, regardless of user assignmen
 |---|---|
 | `401` | Missing or invalid JWT token |
 | `403` | Authenticated user is not an admin |
+
+---
+
+### GET /model/user-assigned
+
+Returns all AI models assigned to a specific user.
+
+**Authentication:** Required — Admin only
+
+**Query Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `userId` | `integer` | ✅ | ID of the user whose assigned models to retrieve |
+
+**Example Request**
+
+```
+GET /model/user-assigned?userId=43
+Authorization: Bearer <admin-jwt-token>
+```
+
+**Success Response `200`**
+
+```json
+{
+  "isSuccess": true,
+  "data": [
+    {
+      "identifier": "gpt-4o",
+      "friendlyName": "GPT-4o",
+      "endpoint": "https://my-resource.openai.azure.com/",
+      "deployment": "gpt-4o",
+      "costPromptToken": 0.000005,
+      "costResponseToken": 0.000015,
+      "isVision": true,
+      "maxTokens": 128000,
+      "supportTool": true,
+      "apiVersionOverride": null,
+      "reasoningModel": false
+    }
+  ],
+  "error": null
+}
+```
+
+Each model has the same fields as described in [`GET /model/all`](#get-modelall).
+
+**Error Responses**
+
+| Status | Condition |
+|---|---|
+| `400` | `userId` is zero or negative |
+| `401` | Missing or invalid JWT token |
+| `403` | Authenticated user is not an admin |
+| `404` | No user with the specified `userId` was found |
 
 ---
 
