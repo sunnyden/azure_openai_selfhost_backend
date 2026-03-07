@@ -47,13 +47,9 @@ namespace OpenAISelfhost.Service.OpenAI
                 throw new InsufficientTokenException("You don't have enough token to execute this request");
             try
             {
-                var result = await (model.IsVision switch
-                {
-                    true => RequestCompletionGPT4Vision(model, request, userId),
-                    false => model.ReasoningModel
+                var result = await (model.ReasoningModel
                         ? RequestCompletionWithAzureChatClient(model, request, userId)
-                        : RequestCompletionWithSDK(model, request, userId),
-                });
+                        : RequestCompletionWithSDK(model, request, userId));
                 var cost = result.PromptTokens * model.CostPromptToken + result.ResponseTokens * model.CostResponseToken;
                 user.RemainingCredit -= cost;
                 userService.UpdateUser(user);
