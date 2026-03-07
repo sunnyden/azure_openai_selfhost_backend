@@ -27,6 +27,8 @@ namespace OpenAISelfhost.DataContracts.Request.ChatModel
 
         public bool IsVision { get; set; }
 
+        public bool IsAudio { get; set; }
+
         public int MaxTokens { get; set; }
 
         public bool SupportTool { get; set; }

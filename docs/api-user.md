@@ -187,6 +187,7 @@ Returns the list of AI models that have been assigned to the currently authentic
       "costPromptToken": 0.000005,
       "costResponseToken": 0.000015,
       "isVision": true,
+      "isAudio": true,
       "maxTokens": 128000,
       "supportTool": true,
       "apiVersionOverride": null,
@@ -206,6 +207,7 @@ Returns the list of AI models that have been assigned to the currently authentic
 | `costPromptToken` | `number` | Cost per prompt token (in credit units) |
 | `costResponseToken` | `number` | Cost per response token (in credit units) |
 | `isVision` | `boolean` | Whether the model supports image inputs |
+| `isAudio` | `boolean` | Whether the model supports audio inputs |
 | `maxTokens` | `integer` | Maximum context window in tokens |
 | `supportTool` | `boolean` | Whether the model supports tool/function calling |
 | `apiVersionOverride` | `string \| null` | Custom Azure API version, or `null` to use the default |

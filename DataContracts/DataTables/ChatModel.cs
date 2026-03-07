@@ -33,6 +33,9 @@ namespace OpenAISelfhost.DataContracts.DataTables
         [Column("is_vision")]
         public bool IsVision { get; set; }
 
+        [Column("is_audio")]
+        public bool IsAudio { get; set; }
+
         [Column("max_tokens")]
         public int MaxTokens { get; set; }
 

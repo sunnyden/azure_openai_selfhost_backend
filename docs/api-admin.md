@@ -248,6 +248,7 @@ Returns **all** AI models registered in the system, regardless of user assignmen
       "costPromptToken": 0.000005,
       "costResponseToken": 0.000015,
       "isVision": true,
+      "isAudio": true,
       "maxTokens": 128000,
       "supportTool": true,
       "apiVersionOverride": null,
@@ -267,6 +268,7 @@ Returns **all** AI models registered in the system, regardless of user assignmen
 | `costPromptToken` | `number` | Cost per prompt token (in credit units) |
 | `costResponseToken` | `number` | Cost per response token (in credit units) |
 | `isVision` | `boolean` | Whether the model supports image inputs |
+| `isAudio` | `boolean` | Whether the model supports audio inputs |
 | `maxTokens` | `integer` | Maximum context window in tokens |
 | `supportTool` | `boolean` | Whether the model supports tool/function calling |
 | `apiVersionOverride` | `string \| null` | Custom Azure API version, or `null` to use the default |
@@ -316,6 +318,7 @@ Authorization: Bearer <admin-jwt-token>
       "costPromptToken": 0.000005,
       "costResponseToken": 0.000015,
       "isVision": true,
+      "isAudio": true,
       "maxTokens": 128000,
       "supportTool": true,
       "apiVersionOverride": null,
@@ -357,6 +360,7 @@ Registers a new AI model.
   "costPromptToken": 0.0000001,
   "costResponseToken": 0.0000004,
   "isVision": false,
+  "isAudio": false,
   "maxTokens": 128000,
   "supportTool": true,
   "apiVersionOverride": null,
@@ -374,6 +378,7 @@ Registers a new AI model.
 | `costPromptToken` | `number` | ✅ | Cost per prompt token (in credit units) |
 | `costResponseToken` | `number` | ✅ | Cost per response token (in credit units) |
 | `isVision` | `boolean` | ✅ | Set `true` if the model supports image inputs |
+| `isAudio` | `boolean` | Whether the model supports audio inputs |
 | `maxTokens` | `integer` | ✅ | Maximum context window in tokens |
 | `supportTool` | `boolean` | ✅ | Set `true` if the model supports tool/function calling |
 | `apiVersionOverride` | `string \| null` | | Custom Azure API version; `null` uses the default |
@@ -418,6 +423,7 @@ Omit or leave `key` empty/`null` to keep the existing access key.
   "costPromptToken": 0.0000002,
   "costResponseToken": 0.0000006,
   "isVision": true,
+  "isAudio": true,
   "maxTokens": 128000,
   "supportTool": true,
   "apiVersionOverride": "2024-02-01",
@@ -435,6 +441,7 @@ Omit or leave `key` empty/`null` to keep the existing access key.
 | `costPromptToken` | `number` | ✅ | Updated prompt token cost |
 | `costResponseToken` | `number` | ✅ | Updated response token cost |
 | `isVision` | `boolean` | ✅ | Updated vision capability flag |
+| `isAudio` | `boolean` | Whether the model supports audio inputs |
 | `maxTokens` | `integer` | ✅ | Updated max context window |
 | `supportTool` | `boolean` | ✅ | Updated tool-calling capability flag |
 | `apiVersionOverride` | `string \| null` | | Updated API version override |

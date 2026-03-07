@@ -55,6 +55,7 @@ namespace OpenAISelfhost.Controllers
                 FriendlyName = request.FriendlyName,
                 Key = request.Key,
                 IsVision = request.IsVision,
+                IsAudio = request.IsAudio,
                 Endpoint = request.Endpoint,
                 Deployment = request.Deployment,
                 MaxTokens = request.MaxTokens,
@@ -80,6 +81,7 @@ namespace OpenAISelfhost.Controllers
             newModel.FriendlyName = request.FriendlyName;
 
             newModel.IsVision = request.IsVision;
+            newModel.IsAudio = request.IsAudio;
             newModel.Endpoint = request.Endpoint;
             newModel.Deployment = request.Deployment;
             newModel.MaxTokens = request.MaxTokens;
