@@ -17,6 +17,7 @@ using OpenAISelfhost.Service.OpenAI.Utils;
 using OpenAISelfhost.Transports;
 using System.Net;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using ChatResponse = OpenAISelfhost.DataContracts.Response.Chat.ChatResponse;
@@ -70,13 +71,23 @@ namespace OpenAISelfhost.Service.OpenAI
             if (user.RemainingCredit <= 0)
                 throw new InsufficientTokenException("You don't have enough token to execute this request");
 
-            var chatClient = GetChatClient(model)
-                .AsBuilder()
-                .UseFunctionInvocation()
-                .Build();
             var inputTokenCount = 0;
             var outputTokenCount = 0;
             var resultId = Guid.NewGuid().ToString();
+
+            // Build the pipeline with UsageAccumulatingChatClient placed inside FunctionInvokingChatClient
+            // so that token counts from ALL API rounds (including tool-call continuation rounds) are captured.
+            var clientBuilder = GetChatClient(model)
+                .AsBuilder()
+                .Use(inner => new UsageAccumulatingChatClient(inner,
+                    (input, output) => { Interlocked.Add(ref inputTokenCount, input); Interlocked.Add(ref outputTokenCount, output); }));
+
+            if (model.SupportTool)
+            {
+                clientBuilder = clientBuilder.UseFunctionInvocation();
+            }
+
+            var chatClient = clientBuilder.Build();
 
             var tools = Enumerable.Empty<McpClientTool>();
             var toolsFromRemote = Enumerable.Empty<McpClientTool>();
@@ -145,12 +156,6 @@ namespace OpenAISelfhost.Service.OpenAI
             Microsoft.Extensions.AI.ChatFinishReason? lastReason = null;
             await foreach (var update in response)
             {
-                // usage data
-                foreach (var usageContent in update.Contents.OfType<UsageContent>())
-                {
-                    inputTokenCount += (int)(usageContent.Details.InputTokenCount ?? 0);
-                    outputTokenCount += (int)(usageContent.Details.OutputTokenCount ?? 0);
-                }
                 if (lastReason == Microsoft.Extensions.AI.ChatFinishReason.Stop)
                 {
                     continue;
@@ -243,10 +248,15 @@ namespace OpenAISelfhost.Service.OpenAI
 
         private async Task<ChatResponse> RequestCompletionWithSDK(ChatModel model, ChatCompletionRequest request, int userId)
         {
+            var accInputTokens = 0;
+            var accOutputTokens = 0;
+
             var openAIClient = new AzureOpenAIClient(new Uri(model.Endpoint), new AzureKeyCredential(model.Key));
             var openAIChatClient = openAIClient.GetChatClient(model.Deployment);
             var chatClientBuilder = openAIChatClient.AsIChatClient()
-                .AsBuilder();
+                .AsBuilder()
+                .Use(inner => new UsageAccumulatingChatClient(inner,
+                    (input, output) => { Interlocked.Add(ref accInputTokens, input); Interlocked.Add(ref accOutputTokens, output); }));
             
             // Only enable function invocation if model supports tools
             if (model.SupportTool)
@@ -260,9 +270,9 @@ namespace OpenAISelfhost.Service.OpenAI
             var result = new ChatResponse()
             {
                 Message = response.Text,
-                PromptTokens = (int)(response.Usage?.InputTokenCount ?? 0),
-                ResponseTokens = (int)(response.Usage?.OutputTokenCount ?? 0),
-                TotalTokens = (int)(response.Usage?.TotalTokenCount ?? 0),
+                PromptTokens = accInputTokens,
+                ResponseTokens = accOutputTokens,
+                TotalTokens = accInputTokens + accOutputTokens,
                 StopReason = response.FinishReason.ToString() ?? "N/A",
             };
 
@@ -343,6 +353,56 @@ namespace OpenAISelfhost.Service.OpenAI
             var mimeType = base64.Split(',')[0].Split(':')[1].Split(';')[0];
             var data = base64.Split(',')[1];
             return new DataContent(Convert.FromBase64String(data), mimeType);
+        }
+
+        /// <summary>
+        /// A chat client middleware that intercepts every API call made by the inner client
+        /// (including calls made internally by <see cref="FunctionInvokingChatClient"/> for
+        /// tool-call continuation rounds) and accumulates the token usage via a callback.
+        /// Placing this middleware inside the function-invocation layer ensures that tokens
+        /// from ALL rounds are captured, not just the final one.
+        /// </summary>
+        private sealed class UsageAccumulatingChatClient : DelegatingChatClient
+        {
+            private readonly Action<int, int> _onUsage;
+
+            public UsageAccumulatingChatClient(IChatClient innerClient, Action<int, int> onUsage)
+                : base(innerClient)
+            {
+                _onUsage = onUsage;
+            }
+
+            public override async Task<Microsoft.Extensions.AI.ChatResponse> GetResponseAsync(
+                IEnumerable<MsxChatMessage> messages,
+                ChatOptions? options = null,
+                CancellationToken cancellationToken = default)
+            {
+                var response = await base.GetResponseAsync(messages, options, cancellationToken);
+                if (response.Usage is { } usage)
+                {
+                    _onUsage(
+                        (int)(usage.InputTokenCount ?? 0),
+                        (int)(usage.OutputTokenCount ?? 0));
+                }
+                return response;
+            }
+
+            public override async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
+                IEnumerable<MsxChatMessage> messages,
+                ChatOptions? options = null,
+                [EnumeratorCancellation] CancellationToken cancellationToken = default)
+            {
+                await foreach (var update in base.GetStreamingResponseAsync(messages, options, cancellationToken))
+                {
+                    foreach (var usage in update.Contents.OfType<UsageContent>())
+                    {
+                        _onUsage(
+                            (int)(usage.Details.InputTokenCount ?? 0),
+                            (int)(usage.Details.OutputTokenCount ?? 0));
+                    }
+                    yield return update;
+                }
+            }
         }
     }
 }
