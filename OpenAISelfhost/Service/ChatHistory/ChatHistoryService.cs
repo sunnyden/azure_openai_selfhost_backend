@@ -85,6 +85,17 @@ namespace OpenAISelfhost.Service.ChatHistory
                 .FirstOrDefault(ch => ch.Id == id && ch.UserId == userId);
         }
 
+        public DataContracts.DataTables.ChatHistory? GetChatHistoryById(string id)
+        {
+            if (string.IsNullOrWhiteSpace(id))
+            {
+                throw new InvalidPayloadException("Chat history ID is required");
+            }
+
+            return databaseContext.ChatHistories
+                .FirstOrDefault(ch => ch.Id == id);
+        }
+
         public IEnumerable<DataContracts.DataTables.ChatHistory> GetChatHistoriesForUser(int userId)
         {
             return databaseContext.ChatHistories

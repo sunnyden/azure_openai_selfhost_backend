@@ -10,6 +10,7 @@ namespace OpenAISelfhost.Service.ChatHistory
 
         // Read
         DataContracts.DataTables.ChatHistory? GetChatHistory(string id, int userId);
+        DataContracts.DataTables.ChatHistory? GetChatHistoryById(string id);  // Admin only
         IEnumerable<DataContracts.DataTables.ChatHistory> GetChatHistoriesForUser(int userId);
         IEnumerable<DataContracts.DataTables.ChatHistory> GetAllChatHistories();  // Admin only
 
