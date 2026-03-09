@@ -54,9 +54,12 @@ namespace OpenAISelfhost.Controllers
         [Authorize]
         public ApiResponse<ChatHistoryResponse> GetChatHistory(string id)
         {
+            var isAdmin = User.IsInRole(UserType.Admin);
             var userId = GetUserId();
 
-            var chatHistory = chatHistoryService.GetChatHistory(id, userId);
+            var chatHistory = isAdmin
+                ? chatHistoryService.GetChatHistoryById(id)
+                : chatHistoryService.GetChatHistory(id, userId);
             if (chatHistory == null)
             {
                 throw new Exceptions.Http.ChatHistoryNotFoundException($"Chat history with id {id} not found");
